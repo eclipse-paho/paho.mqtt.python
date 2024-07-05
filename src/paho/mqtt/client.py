@@ -58,7 +58,6 @@ try:
                 san_entries = ext.__str__().split(', ')
                 for entry in san_entries:
                     key, value = entry.split(':', 1)
-                    print(f"key {key}: value {value}")
                     san.append((key.strip(), value.strip()))
         return san
 
