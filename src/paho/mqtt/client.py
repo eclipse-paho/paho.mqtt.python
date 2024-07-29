@@ -1140,32 +1140,88 @@ class Client:
     def _sock_recv(self, bufsize: int) -> bytes:
         if self._sock is None:
             raise ConnectionError("self._sock is None")
-        try:
-            return self._sock.recv(bufsize)
-        except ssl.SSLWantReadError as err:
-            raise BlockingIOError() from err
-        except ssl.SSLWantWriteError as err:
-            self._call_socket_register_write()
-            raise BlockingIOError() from err
-        except AttributeError as err:
-            self._easy_log(
-                MQTT_LOG_DEBUG, "socket was None: %s", err)
-            raise ConnectionError() from err
+
+        if HAS_OPENSSL:
+            from OpenSSL import SSL
+
+            if isinstance(self._ssl_context, SSL.Context):
+                try:
+                    return self._sock.recv(bufsize)
+                except SSL.WantReadError as err:
+                    raise BlockingIOError() from err
+                except SSL.WantWriteError as err:
+                    self._call_socket_register_write()
+                    raise BlockingIOError() from err
+                except SSL.ZeroReturnError as err:
+                    raise BlockingIOError() from err
+                except AttributeError as err:
+                    self._easy_log(MQTT_LOG_DEBUG, "socket was None: %s", err)
+                    raise ConnectionError() from err
+            else:
+                try:
+                    return self._sock.recv(bufsize)
+                except ssl.SSLWantReadError as err:
+                    raise BlockingIOError() from err
+                except ssl.SSLWantWriteError as err:
+                    self._call_socket_register_write()
+                    raise BlockingIOError() from err
+                except AttributeError as err:
+                    self._easy_log(MQTT_LOG_DEBUG, "socket was None: %s", err)
+                    raise ConnectionError() from err
+        else:
+            try:
+                return self._sock.recv(bufsize)
+            except ssl.SSLWantReadError as err:
+                raise BlockingIOError() from err
+            except ssl.SSLWantWriteError as err:
+                self._call_socket_register_write()
+                raise BlockingIOError() from err
+            except AttributeError as err:
+                self._easy_log(MQTT_LOG_DEBUG, "socket was None: %s", err)
+                raise ConnectionError() from err
 
     def _sock_send(self, buf: bytes) -> int:
         if self._sock is None:
             raise ConnectionError("self._sock is None")
 
-        try:
-            return self._sock.send(buf)
-        except ssl.SSLWantReadError as err:
-            raise BlockingIOError() from err
-        except ssl.SSLWantWriteError as err:
-            self._call_socket_register_write()
-            raise BlockingIOError() from err
-        except BlockingIOError as err:
-            self._call_socket_register_write()
-            raise BlockingIOError() from err
+        if HAS_OPENSSL:
+            from OpenSSL import SSL
+
+            if isinstance(self._ssl_context, SSL.Context):
+                try:
+                    return self._sock.send(buf)
+                except SSL.WantReadError as err:
+                    raise BlockingIOError() from err
+                except SSL.WantWriteError as err:
+                    self._call_socket_register_write()
+                    raise BlockingIOError() from err
+                except SSL.ZeroReturnError as err:
+                    raise BlockingIOError() from err
+                except BlockingIOError as err:
+                    self._call_socket_register_write()
+                    raise BlockingIOError() from err
+            else:
+                try:
+                    return self._sock.send(buf)
+                except ssl.SSLWantReadError as err:
+                    raise BlockingIOError() from err
+                except ssl.SSLWantWriteError as err:
+                    self._call_socket_register_write()
+                    raise BlockingIOError() from err
+                except BlockingIOError as err:
+                    self._call_socket_register_write()
+                    raise BlockingIOError() from err
+        else:
+            try:
+                return self._sock.send(buf)
+            except ssl.SSLWantReadError as err:
+                raise BlockingIOError() from err
+            except ssl.SSLWantWriteError as err:
+                self._call_socket_register_write()
+                raise BlockingIOError() from err
+            except BlockingIOError as err:
+                self._call_socket_register_write()
+                raise BlockingIOError() from err
 
     def _sock_close(self) -> None:
         """Close the connection to the server."""
@@ -4696,13 +4752,13 @@ class Client:
             return socks.create_connection(addr, timeout=self._connect_timeout, source_address=source, **proxy)
         else:
             return socket.create_connection(addr, timeout=self._connect_timeout, source_address=source)
-    
+
     def _ssl_wrap_socket(self, tcp_sock: _socket) -> _socket.socket:
         if self._ssl_context is None:
             raise ValueError(
                 "Impossible condition. _ssl_context should never be None if _ssl is True"
             )
-        
+
         verify_host = not self._tls_insecure
         try:
             if isinstance(self._ssl_context, ssl.SSLContext):
@@ -4712,13 +4768,18 @@ class Client:
                     server_hostname=self._host,
                     do_handshake_on_connect=False,
                 )
-            elif HAS_OPENSSL and isinstance(self._ssl_context, SSL.Context):
-                # Use PyOpenSSL's SSL.Context
-                conn = SSL.Connection(self._ssl_context, tcp_sock)
-                conn.set_connect_state()
-                if self._host:
-                    conn.set_tlsext_host_name(self._host.encode('utf-8'))
-                ssl_sock = conn
+            elif HAS_OPENSSL:
+                from OpenSSL import SSL
+
+                if isinstance(self._ssl_context, SSL.Context):
+                    # Use PyOpenSSL's SSL.Context
+                    conn = SSL.Connection(self._ssl_context, tcp_sock)
+                    conn.set_connect_state()
+                    if self._host:
+                        conn.set_tlsext_host_name(self._host.encode('utf-8'))
+                    ssl_sock = conn
+                else:
+                    raise ValueError("Unsupported SSL context type")
             else:
                 raise ValueError("Unsupported SSL context type")
         except ssl.CertificateError:
