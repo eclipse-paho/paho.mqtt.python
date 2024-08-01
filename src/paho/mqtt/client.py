@@ -1153,7 +1153,7 @@ class Client:
                     self._call_socket_register_write()
                     raise BlockingIOError() from err
                 except SSL.ZeroReturnError as err:
-                    raise BlockingIOError() from err
+                    raise ConnectionError() from err
                 except AttributeError as err:
                     self._easy_log(MQTT_LOG_DEBUG, "socket was None: %s", err)
                     raise ConnectionError() from err
@@ -1196,7 +1196,7 @@ class Client:
                     self._call_socket_register_write()
                     raise BlockingIOError() from err
                 except SSL.ZeroReturnError as err:
-                    raise BlockingIOError() from err
+                    raise ConnectionError() from err
                 except BlockingIOError as err:
                     self._call_socket_register_write()
                     raise BlockingIOError() from err
