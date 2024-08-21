@@ -1152,7 +1152,11 @@ class Client:
                 except SSL.WantWriteError as err:
                     self._call_socket_register_write()
                     raise BlockingIOError() from err
+                except SSL.WantX509LookupError as err:
+                    raise ConnectionError() from err
                 except SSL.ZeroReturnError as err:
+                    raise ConnectionError() from err
+                except SSL.SysCallError as err:
                     raise ConnectionError() from err
                 except AttributeError as err:
                     self._easy_log(MQTT_LOG_DEBUG, "socket was None: %s", err)
@@ -1195,7 +1199,11 @@ class Client:
                 except SSL.WantWriteError as err:
                     self._call_socket_register_write()
                     raise BlockingIOError() from err
+                except SSL.WantX509LookupError as err:
+                    raise ConnectionError() from err
                 except SSL.ZeroReturnError as err:
+                    raise ConnectionError() from err
+                except SSL.SysCallError as err:
                     raise ConnectionError() from err
                 except BlockingIOError as err:
                     self._call_socket_register_write()
