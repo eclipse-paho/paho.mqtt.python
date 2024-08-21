@@ -40,6 +40,9 @@ dependencies = []
 proxy = [
     "PySocks",
 ]
+openssl = [
+    "pyOpenSSL"
+]
 
 [project.urls]
 Homepage = "http://eclipse.org/paho"
