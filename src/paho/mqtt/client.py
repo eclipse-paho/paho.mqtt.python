@@ -1229,7 +1229,7 @@ class Client:
             is mandatory.
         :param str certfile: PEM encoded client certificate filename. Used with
             keyfile for client TLS based authentication. Support for this feature is
-            broker dependent. Note that if the files in encrypted and needs a password to
+            broker dependent. Note that if the file is encrypted and needs a password to
             decrypt it, then this can be passed using the keyfile_password argument - you
             should take precautions to ensure that your password is
             not hard coded into your program by loading the password from a file
@@ -1237,7 +1237,7 @@ class Client:
             be requested to be typed in at a terminal window.
         :param str keyfile: PEM encoded client private keys filename. Used with
             certfile for client TLS based authentication. Support for this feature is
-            broker dependent. Note that if the files in encrypted and needs a password to
+            broker dependent. Note that if the file is encrypted and needs a password to
             decrypt it, then this can be passed using the keyfile_password argument - you
             should take precautions to ensure that your password is
             not hard coded into your program by loading the password from a file
