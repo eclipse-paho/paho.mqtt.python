@@ -3718,12 +3718,10 @@ class Client:
                     if m.qos == 0:
                         m.state = mqtt_ms_publish
                     elif m.qos == 1:
-                        # self._inflight_messages = self._inflight_messages + 1
                         if m.state == mqtt_ms_wait_for_puback:
                             m.dup = True
                         m.state = mqtt_ms_publish
                     elif m.qos == 2:
-                        # self._inflight_messages = self._inflight_messages + 1
                         if self._check_clean_session():
                             if m.state != mqtt_ms_publish:
                                 m.dup = True
@@ -4208,7 +4206,6 @@ class Client:
                 # prevents multiple callbacks for the same message.
                 message = self._in_messages.pop(mid)
                 self._handle_on_message(message)
-                self._inflight_messages -= 1
                 if self._max_inflight_messages > 0:
                     with self._out_message_mutex:
                         rc = self._update_inflight()
