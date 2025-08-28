@@ -137,7 +137,7 @@ Here is a very simple example that subscribes to the broker $SYS topic tree and 
     mqttc.on_connect = on_connect
     mqttc.on_message = on_message
 
-    mqttc.connect("mqtt.eclipseprojects.io", 1883, 60)
+    mqttc.connect("test.mosquitto.org", 1883, 60)
 
     # Blocking call that processes network traffic, dispatches callbacks and
     # handles reconnecting.
@@ -311,7 +311,7 @@ Subscriber example
     mqttc.on_unsubscribe = on_unsubscribe
     
     mqttc.user_data_set([])
-    mqttc.connect("mqtt.eclipseprojects.io")
+    mqttc.connect("test.mosquitto.org")
     mqttc.loop_forever()
     print(f"Received the following message: {mqttc.user_data_get()}")
 
@@ -345,7 +345,7 @@ publisher example
     mqttc.on_publish = on_publish
     
     mqttc.user_data_set(unacked_publish)
-    mqttc.connect("mqtt.eclipseprojects.io")
+    mqttc.connect("test.mosquitto.org")
     mqttc.loop_start()
 
     # Our application produce some messages
@@ -386,7 +386,7 @@ Example:
     mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     mqttc.enable_logger()
 
-    mqttc.connect("mqtt.eclipseprojects.io", 1883, 60)
+    mqttc.connect("test.mosquitto.org", 1883, 60)
     mqttc.loop_start()
 
     # Do additional action needed, publish, subscribe, ...
@@ -405,7 +405,7 @@ It's also possible to define a on_log callback that will receive a copy of all l
     mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     mqttc.on_log = on_log
 
-    mqttc.connect("mqtt.eclipseprojects.io", 1883, 60)
+    mqttc.connect("test.mosquitto.org", 1883, 60)
     mqttc.loop_start()
 
     # Do additional action needed, publish, subscribe, ...
@@ -521,7 +521,7 @@ Example:
 
     import paho.mqtt.publish as publish
 
-    publish.single("paho/test/topic", "payload", hostname="mqtt.eclipseprojects.io")
+    publish.single("paho/test/topic", "payload", hostname="test.mosquitto.org")
 
 Multiple
 ````````
@@ -537,7 +537,7 @@ Example:
 
     msgs = [{'topic':"paho/test/topic", 'payload':"multiple 1"},
         ("paho/test/topic", "multiple 2", 0, False)]
-    publish.multiple(msgs, hostname="mqtt.eclipseprojects.io", protocol=MQTTProtocolVersion.MQTTv5)
+    publish.multiple(msgs, hostname="test.mosquitto.org", protocol=MQTTProtocolVersion.MQTTv5)
 
 
 Subscribe
@@ -563,7 +563,7 @@ Example:
 
     import paho.mqtt.subscribe as subscribe
 
-    msg = subscribe.simple("paho/test/topic", hostname="mqtt.eclipseprojects.io")
+    msg = subscribe.simple("paho/test/topic", hostname="test.mosquitto.org")
     print("%s %s" % (msg.topic, msg.payload))
 
 Using Callback
@@ -585,7 +585,7 @@ Example:
             # it's possible to stop the program by disconnecting
             client.disconnect()
 
-    subscribe.callback(on_message_print, "paho/test/topic", hostname="mqtt.eclipseprojects.io", userdata={"message_count": 0})
+    subscribe.callback(on_message_print, "paho/test/topic", hostname="test.mosquitto.org", userdata={"message_count": 0})
 
 
 Reporting bugs
