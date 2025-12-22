@@ -128,7 +128,7 @@ class ReasonCode:
             self.value = identifier
             self.getName()  # check it's good
 
-    def __getName__(self, packetType, identifier):
+    def __getName__(self, packetType: int, identifier: int) -> str:
         """
         Get the reason code string name for a specific identifier.
         The name can vary by packet type for the same identifier, which
@@ -144,7 +144,7 @@ class ReasonCode:
             raise ValueError(f"Expected exactly one name, found {namelist!r}")
         return namelist[0]
 
-    def getId(self, name):
+    def getId(self, name: str) -> int:
         """
         Get the numeric id corresponding to a reason code name.
 
@@ -157,21 +157,21 @@ class ReasonCode:
                     return code
         raise KeyError(f"Reason code name not found: {name}")
 
-    def set(self, name):
+    def set(self, name: str) -> None:
         self.value = self.getId(name)
 
-    def unpack(self, buffer):
+    def unpack(self, buffer: bytearray) -> int:
         c = buffer[0]
         name = self.__getName__(self.packetType, c)
         self.value = self.getId(name)
         return 1
 
-    def getName(self):
+    def getName(self) -> str:
         """Returns the reason code name corresponding to the numeric value which is set.
         """
         return self.__getName__(self.packetType, self.value)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, int):
             return self.value == other
         if isinstance(other, str):
@@ -180,14 +180,14 @@ class ReasonCode:
             return self.value == other.value
         return False
 
-    def __lt__(self, other):
+    def __lt__(self, other: Any) -> bool:
         if isinstance(other, int):
             return self.value < other
         if isinstance(other, ReasonCode):
             return self.value < other.value
         return NotImplemented
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         try:
             packet_name = PacketTypes.Names[self.packetType]
         except IndexError:
@@ -195,13 +195,13 @@ class ReasonCode:
 
         return f"ReasonCode({packet_name}, {self.getName()!r})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.getName()
 
-    def json(self):
+    def json(self) -> str:
         return self.getName()
 
-    def pack(self):
+    def pack(self) -> bytearray:
         return bytearray([self.value])
 
     @property
