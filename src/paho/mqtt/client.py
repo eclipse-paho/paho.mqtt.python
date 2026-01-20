@@ -3180,6 +3180,10 @@ class Client:
                 return MQTTErrorCode.MQTT_ERR_CONN_LOST
 
             if write_length > 0:
+                # Update the last message out time once packet (partial packet) is sent
+                with self._msgtime_mutex:
+                    self._last_msg_out = time_func()
+
                 packet['to_process'] -= write_length
                 packet['pos'] += write_length
 
@@ -3238,10 +3242,6 @@ class Client:
                 else:
                     # We haven't finished with this packet
                     self._out_packet.appendleft(packet)
-
-                # Update the last message out time once packet (partial packet) is sent
-                with self._msgtime_mutex:
-                    self._last_msg_out = time_func()
             else:
                 break
 
