@@ -3238,6 +3238,10 @@ class Client:
                 else:
                     # We haven't finished with this packet
                     self._out_packet.appendleft(packet)
+
+                # Update the last message out time once packet (partial packet) is sent
+                with self._msgtime_mutex:
+                    self._last_msg_out = time_func()
             else:
                 break
 
