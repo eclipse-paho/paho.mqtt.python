@@ -39,11 +39,23 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, NamedTupl
 
 from paho.mqtt.packettypes import PacketTypes
 
-from .enums import CallbackAPIVersion, ConnackCode, LogLevel, MessageState, MessageType, MQTTErrorCode, MQTTProtocolVersion, PahoClientMode, _ConnectionState
+# Re-export public enums and helper types explicitly so static type checkers
+# treat the documented ``paho.mqtt.client`` module surface as exported API.
+from .enums import (
+    CallbackAPIVersion as CallbackAPIVersion,
+    ConnackCode as ConnackCode,
+    LogLevel as LogLevel,
+    MessageState as MessageState,
+    MessageType as MessageType,
+    MQTTErrorCode as MQTTErrorCode,
+    MQTTProtocolVersion as MQTTProtocolVersion,
+    PahoClientMode as PahoClientMode,
+    _ConnectionState,
+)
 from .matcher import MQTTMatcher
-from .properties import Properties
-from .reasoncodes import ReasonCode, ReasonCodes
-from .subscribeoptions import SubscribeOptions
+from .properties import Properties as Properties
+from .reasoncodes import ReasonCode as ReasonCode, ReasonCodes as ReasonCodes
+from .subscribeoptions import SubscribeOptions as SubscribeOptions
 
 try:
     from typing import Literal

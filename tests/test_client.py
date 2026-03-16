@@ -15,6 +15,12 @@ import tests.paho_test as paho_test
 from tests.testsupport.broker import FakeBroker, fake_broker  # noqa: F401
 
 
+def test_documented_public_reexports() -> None:
+    assert client.CallbackAPIVersion is CallbackAPIVersion
+    assert client.Properties is Properties
+    assert client.ReasonCode is ReasonCode
+
+
 @pytest.mark.parametrize("proto_ver,callback_version", [
     (MQTTProtocolVersion.MQTTv31, CallbackAPIVersion.VERSION1),
     (MQTTProtocolVersion.MQTTv31, CallbackAPIVersion.VERSION2),
