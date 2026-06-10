@@ -1153,7 +1153,7 @@ class Client:
     ) -> None:
         self._reset_sockets()
 
-        self.__init__(client_id, clean_session, userdata)  # type: ignore[misc]
+        self.__init__(self.callback_api_version, client_id, clean_session, userdata)  # type: ignore[misc]
 
     def ws_set_options(
         self,
