@@ -2458,7 +2458,7 @@ class Client:
         :param Client client: the client instance for this callback
         :param userdata: the private user data as set in Client() or user_data_set()
         :param ConnectFlags connect_flags: the flags for this connection
-        :param ReasonCode reason_code: the connection reason code received from the broken.
+        :param ReasonCode reason_code: the connection reason code received from the broker.
                        In MQTT v5.0 it's the reason code defined by the standard.
                        In MQTT v3, we convert return code to a reason code, see
                        `convert_connack_rc_to_reason_code()`.
@@ -2642,7 +2642,7 @@ class Client:
         :param userdata: the private user data as set in Client() or user_data_set()
         :param int mid: matches the mid variable returned from the corresponding
                      `publish()` call, to allow outgoing messages to be tracked.
-        :param ReasonCode reason_code: the connection reason code received from the broken.
+        :param ReasonCode reason_code: the connection reason code received from the broker.
                      In MQTT v5.0 it's the reason code defined by the standard.
                      In MQTT v3 it's always the reason code Success
         :parama Properties properties: the MQTT v5.0 properties received from the broker.
