@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [master]
   push:
-    branches: [master, "Fix_test_failure_on_Python_3.7", "Fix_test_failure_on_Python_3.8"]
+    branches: [master]
 jobs:
   tox:
     strategy:
