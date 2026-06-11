@@ -3758,7 +3758,7 @@ class Client:
     def _packet_queue(
         self,
         command: int,
-        packet: bytes,
+        packet: bytes|bytearray,
         mid: int,
         qos: int,
         info: MQTTMessageInfo | None = None,
