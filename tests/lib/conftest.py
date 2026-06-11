@@ -50,6 +50,14 @@ def stop_process(proc: subprocess.Popen) -> None:
         proc.wait(5)
     except subprocess.TimeoutExpired:
         proc.terminate()
+        try:
+            # At least on Unix, terminate() isn't an unconditional kill, process
+            # could ignore/handle it.
+            proc.wait(1)
+        except subprocess.TimeoutExpired:
+            # So use kill which is unstoppable on Unix
+            proc.kill()
+            proc.wait(1)  # If here we timeout, there is nothing more to do.
 
 
 @pytest.fixture()
