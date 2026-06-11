@@ -35,7 +35,7 @@ import urllib.parse
 import urllib.request
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, NamedTuple, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, NamedTuple, Sequence, Tuple, Union, cast, overload
 
 from paho.mqtt.packettypes import PacketTypes
 
@@ -78,13 +78,13 @@ if TYPE_CHECKING:
         qos: int
         pos: int
         to_process: int
-        packet: bytes
+        packet: bytes | bytearray
         info: MQTTMessageInfo | None
 
     class SocketLike(Protocol):
         def recv(self, buffer_size: int) -> bytes:
             ...
-        def send(self, buffer: bytes) -> int:
+        def send(self, buffer: bytes | bytearray) -> int:
             ...
         def close(self) -> None:
             ...
@@ -458,8 +458,13 @@ def _socketpair_compat() -> tuple[socket.socket, socket.socket]:
     listensock.close()
     return (sock1, sock2)
 
-
-def _force_bytes(s: str | bytes) -> bytes:
+@overload
+def _force_bytes(s: str) -> bytes: ...
+@overload
+def _force_bytes(s: bytes) -> bytes: ...
+@overload
+def _force_bytes(s: bytearray) -> bytearray: ...
+def _force_bytes(s: str | bytes | bytearray) -> bytes | bytearray:
     if isinstance(s, str):
         return s.encode("utf-8")
     return s
@@ -832,7 +837,7 @@ class Client:
         self._will_properties: Properties | None = None
         self._will = False
         self._will_topic = b""
-        self._will_payload = b""
+        self._will_payload: bytes | bytearray = b""
         self._will_qos = 0
         self._will_retain = False
         self._on_message_filtered = MQTTMatcher()
@@ -1074,7 +1079,7 @@ class Client:
         return self._will_topic.decode("utf-8")
 
     @property
-    def will_payload(self) -> bytes | None:
+    def will_payload(self) -> bytes | bytearray | None:
         """
         The payload for the will message that is sent when disconnecting unexpectedly. None if a will shall not be sent.
 
@@ -1105,7 +1110,7 @@ class Client:
                 MQTT_LOG_DEBUG, "socket was None: %s", err)
             raise ConnectionError() from err
 
-    def _sock_send(self, buf: bytes) -> int:
+    def _sock_send(self, buf: bytes | bytearray) -> int:
         if self._sock is None:
             raise ConnectionError("self._sock is None")
 
@@ -3359,7 +3364,7 @@ class Client:
                 # FIXME - this doesn't deal with incorrectly large payloads
                 return packet
 
-    def _pack_str16(self, packet: bytearray, data: bytes | str) -> None:
+    def _pack_str16(self, packet: bytearray, data: bytearray | bytes | str) -> None:
         data = _force_bytes(data)
         packet.extend(struct.pack("!H", len(data)))
         packet.extend(data)
@@ -4918,7 +4923,7 @@ class _WebsocketWrapper:
                     for index in range(chunk_startindex, readindex):
                         payload[index] ^= mask_key[index % 4]
 
-                result = payload[chunk_startindex:readindex]
+                result = bytes(payload[chunk_startindex:readindex])
                 self._payload_head = readindex
             else:
                 payload = bytearray()
@@ -4951,7 +4956,7 @@ class _WebsocketWrapper:
             self.connected = False
             return b''
 
-    def _send_impl(self, data: bytes) -> int:
+    def _send_impl(self, data: bytes | bytearray) -> int:
 
         # if previous frame was sent successfully
         if len(self._sendbuffer) == 0:
@@ -4979,7 +4984,7 @@ class _WebsocketWrapper:
     def read(self, length: int) -> bytes:
         return self._recv_impl(length)
 
-    def send(self, data: bytes) -> int:
+    def send(self, data: bytes | bytearray) -> int:
         return self._send_impl(data)
 
     def write(self, data: bytes) -> int:
