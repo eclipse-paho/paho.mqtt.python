@@ -595,7 +595,7 @@ class MQTTMessage:
         self.mid = mid
         """ The message id (int)."""
         self._topic = topic
-        self.payload = b""
+        self.payload: bytes|bytearray = b""
         """the message payload (bytes)"""
         self.qos = 0
         """ The message Quality of Service (0, 1 or 2)."""
