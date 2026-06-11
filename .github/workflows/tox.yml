@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [master]
   push:
-    branches: [master, Fix_test_failure_on_Python_3.8]
+    branches: [master, "Fix_test_failure_on_Python_3.7", "Fix_test_failure_on_Python_3.8"]
 jobs:
   tox:
     strategy:
@@ -20,7 +20,7 @@ jobs:
           repository: eclipse/paho.mqtt.testing
           ref: a4dc694010217b291ee78ee13a6d1db812f9babd
           path: paho.mqtt.testing
-          
+
       - uses: LizardByte/actions/actions/setup_python@v2026.605.34721
         if: ${{ matrix.python == '3.7' }}
         with:
