@@ -1687,7 +1687,7 @@ class Client:
             if rc or self._sock is None:
                 return rc
 
-        if self._sockpairR and self._sockpairR in socklist[0]:
+        if self._sockpairR in socklist[0] and self._sockpairR:
             # Stimulate output write even though we didn't ask for it, because
             # at that point the publish or other command wasn't present.
             socklist[1].insert(0, self._sock)
