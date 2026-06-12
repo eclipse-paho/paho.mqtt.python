@@ -470,7 +470,7 @@ def _force_bytes(s: str | bytes | bytearray) -> bytes | bytearray:
     return s
 
 
-def _encode_payload(payload: str | bytes | bytearray | int | float | None) -> bytes|bytearray:
+def _encode_payload(payload: str | bytes | bytearray | int | float | None) -> bytes | bytearray:
     if isinstance(payload, str):
         return payload.encode("utf-8")
 
@@ -3373,7 +3373,7 @@ class Client:
         self,
         mid: int,
         topic: bytes,
-        payload: bytes|bytearray = b"",
+        payload: bytes | bytearray = b"",
         qos: int = 0,
         retain: bool = False,
         dup: bool = False,
