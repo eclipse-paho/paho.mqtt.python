@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        python: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -21,12 +21,7 @@ jobs:
           ref: a4dc694010217b291ee78ee13a6d1db812f9babd
           path: paho.mqtt.testing
 
-      - uses: LizardByte/actions/actions/setup_python@v2026.605.34721
-        if: ${{ matrix.python == '3.7' }}
-        with:
-          python-version: ${{ matrix.python }}
       - uses: actions/setup-python@v5
-        if: ${{ matrix.python != '3.7' }}
         with:
           python-version: ${{ matrix.python }}
           cache: pip

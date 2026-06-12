@@ -17,7 +17,6 @@
 """
 
 
-
 class MQTTException(Exception):
     pass
 
@@ -38,8 +37,7 @@ class SubscribeOptions:
     """
 
     # retain handling options
-    RETAIN_SEND_ON_SUBSCRIBE, RETAIN_SEND_IF_NEW_SUB, RETAIN_DO_NOT_SEND = range(
-        0, 3)
+    RETAIN_SEND_ON_SUBSCRIBE, RETAIN_SEND_IF_NEW_SUB, RETAIN_DO_NOT_SEND = range(0, 3)
 
     def __init__(
         self,
@@ -55,42 +53,52 @@ class SubscribeOptions:
         retainHandling:     RETAIN_SEND_ON_SUBSCRIBE, RETAIN_SEND_IF_NEW_SUB or RETAIN_DO_NOT_SEND
                             RETAIN_SEND_ON_SUBSCRIBE is the default and corresponds to MQTT v3.1.1 behavior.
         """
-        object.__setattr__(self, "names",
-                           ["QoS", "noLocal", "retainAsPublished", "retainHandling"])
+        object.__setattr__(
+            self, "names", ["QoS", "noLocal", "retainAsPublished", "retainHandling"]
+        )
         self.QoS = qos  # bits 0,1
         self.noLocal = noLocal  # bit 2
         self.retainAsPublished = retainAsPublished  # bit 3
         self.retainHandling = retainHandling  # bits 4 and 5: 0, 1 or 2
         if self.retainHandling not in (0, 1, 2):
-            raise AssertionError(f"Retain handling should be 0, 1 or 2, not {self.retainHandling}")
+            raise AssertionError(
+                f"Retain handling should be 0, 1 or 2, not {self.retainHandling}"
+            )
         if self.QoS not in (0, 1, 2):
             raise AssertionError(f"QoS should be 0, 1 or 2, not {self.QoS}")
 
     def __setattr__(self, name, value):
         if name not in self.names:
-            raise MQTTException(
-                f"{name} Attribute name must be one of {self.names}")
+            raise MQTTException(f"{name} Attribute name must be one of {self.names}")
         object.__setattr__(self, name, value)
 
     def pack(self):
         if self.retainHandling not in (0, 1, 2):
-            raise AssertionError(f"Retain handling should be 0, 1 or 2, not {self.retainHandling}")
+            raise AssertionError(
+                f"Retain handling should be 0, 1 or 2, not {self.retainHandling}"
+            )
         if self.QoS not in (0, 1, 2):
             raise AssertionError(f"QoS should be 0, 1 or 2, not {self.QoS}")
         noLocal = 1 if self.noLocal else 0
         retainAsPublished = 1 if self.retainAsPublished else 0
-        data = [(self.retainHandling << 4) | (retainAsPublished << 3) |
-                (noLocal << 2) | self.QoS]
+        data = [
+            (self.retainHandling << 4)
+            | (retainAsPublished << 3)
+            | (noLocal << 2)
+            | self.QoS
+        ]
         return bytes(data)
 
     def unpack(self, buffer):
         b0 = buffer[0]
-        self.retainHandling = ((b0 >> 4) & 0x03)
+        self.retainHandling = (b0 >> 4) & 0x03
         self.retainAsPublished = True if ((b0 >> 3) & 0x01) == 1 else False
         self.noLocal = True if ((b0 >> 2) & 0x01) == 1 else False
-        self.QoS = (b0 & 0x03)
+        self.QoS = b0 & 0x03
         if self.retainHandling not in (0, 1, 2):
-            raise AssertionError(f"Retain handling should be 0, 1 or 2, not {self.retainHandling}")
+            raise AssertionError(
+                f"Retain handling should be 0, 1 or 2, not {self.retainHandling}"
+            )
         if self.QoS not in (0, 1, 2):
             raise AssertionError(f"QoS should be 0, 1 or 2, not {self.QoS}")
         return 1
@@ -99,9 +107,17 @@ class SubscribeOptions:
         return str(self)
 
     def __str__(self):
-        return "{QoS="+str(self.QoS)+", noLocal="+str(self.noLocal) +\
-            ", retainAsPublished="+str(self.retainAsPublished) +\
-            ", retainHandling="+str(self.retainHandling)+"}"
+        return (
+            "{QoS="
+            + str(self.QoS)
+            + ", noLocal="
+            + str(self.noLocal)
+            + ", retainAsPublished="
+            + str(self.retainAsPublished)
+            + ", retainHandling="
+            + str(self.retainHandling)
+            + "}"
+        )
 
     def json(self):
         data = {

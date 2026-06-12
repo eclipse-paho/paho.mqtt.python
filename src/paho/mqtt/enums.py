@@ -35,6 +35,7 @@ class CallbackAPIVersion(enum.Enum):
     `on_subscribe`, `on_unsubscribe`, `on_log`, `on_socket_open`, `on_socket_close`,
     `on_socket_register_write`, `on_socket_unregister_write`
     """
+
     VERSION1 = 1
     """The version used with paho-mqtt 1.x before introducing CallbackAPIVersion.
 

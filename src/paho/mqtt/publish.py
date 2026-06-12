@@ -18,6 +18,7 @@ of messages in a one-shot manner. In other words, they are useful for the
 situation where you have a single/multiple messages you want to publish to a
 broker, then disconnect and nothing else is required.
 """
+
 from __future__ import annotations
 
 import collections
@@ -42,12 +43,9 @@ if TYPE_CHECKING:
     except ImportError:
         from typing_extensions import Literal  # type: ignore
 
-
-
     class AuthParameter(TypedDict, total=False):
         username: Required[str]
         password: NotRequired[str]
-
 
     class TLSParameter(TypedDict, total=False):
         ca_certs: Required[str]
@@ -56,7 +54,6 @@ if TYPE_CHECKING:
         tls_version: NotRequired[int]
         ciphers: NotRequired[str]
         insecure: NotRequired[bool]
-
 
     class MessageDict(TypedDict, total=False):
         topic: Required[str]
@@ -79,10 +76,12 @@ def _do_publish(client: paho.Client):
     elif isinstance(message, (tuple, list)):
         client.publish(*message)
     else:
-        raise TypeError('message must be a dict, tuple, or list')
+        raise TypeError("message must be a dict, tuple, or list")
 
 
-def _on_connect(client: paho.Client, userdata: MessagesList, flags, reason_code, properties):
+def _on_connect(
+    client: paho.Client, userdata: MessagesList, flags, reason_code, properties
+):
     """Internal v5 callback"""
     if reason_code == 0:
         if len(userdata) > 0:
@@ -92,10 +91,14 @@ def _on_connect(client: paho.Client, userdata: MessagesList, flags, reason_code,
 
 
 def _on_publish(
-    client: paho.Client, userdata: collections.deque[MessagesList], mid: int, reason_codes: ReasonCode, properties: Properties,
+    client: paho.Client,
+    userdata: collections.deque[MessagesList],
+    mid: int,
+    reason_codes: ReasonCode,
+    properties: Properties,
 ) -> None:
     """Internal callback"""
-    #pylint: disable=unused-argument
+    # pylint: disable=unused-argument
 
     if len(userdata) == 0:
         client.disconnect()
@@ -180,9 +183,9 @@ def multiple(
     """
 
     if not isinstance(msgs, Iterable):
-        raise TypeError('msgs must be an iterable')
+        raise TypeError("msgs must be an iterable")
     if len(msgs) == 0:
-        raise ValueError('msgs is empty')
+        raise ValueError("msgs is empty")
 
     client = paho.Client(
         CallbackAPIVersion.VERSION2,
@@ -200,20 +203,21 @@ def multiple(
         client.proxy_set(**proxy_args)
 
     if auth:
-        username = auth.get('username')
+        username = auth.get("username")
         if username:
-            password = auth.get('password')
+            password = auth.get("password")
             client.username_pw_set(username, password)
         else:
-            raise KeyError("The 'username' key was not found, this is "
-                           "required for auth")
+            raise KeyError(
+                "The 'username' key was not found, this is " "required for auth"
+            )
 
     if will is not None:
         client.will_set(**will)
 
     if tls is not None:
         if isinstance(tls, dict):
-            insecure = tls.pop('insecure', False)
+            insecure = tls.pop("insecure", False)
             # mypy don't get that tls no longer contains the key insecure
             client.tls_set(**tls)  # type: ignore[misc]
             if insecure:
@@ -300,7 +304,23 @@ def single(
     :param proxy_args: a dictionary that will be given to the client.
     """
 
-    msg: MessageDict = {'topic':topic, 'payload':payload, 'qos':qos, 'retain':retain}
+    msg: MessageDict = {
+        "topic": topic,
+        "payload": payload,
+        "qos": qos,
+        "retain": retain,
+    }
 
-    multiple([msg], hostname, port, client_id, keepalive, will, auth, tls,
-             protocol, transport, proxy_args)
+    multiple(
+        [msg],
+        hostname,
+        port,
+        client_id,
+        keepalive,
+        will,
+        auth,
+        tls,
+        protocol,
+        transport,
+        proxy_args,
+    )
