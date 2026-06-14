@@ -79,6 +79,8 @@ def start_client(request: pytest.FixtureRequest):
 
         def fin():
             stop_process(proc)
+            # If return code is None, process had not stopped when a method was last called on proc.
+            # https://docs.python.org/library/subprocess.html#subprocess.Popen.returncode
             if proc.returncode != expected_returncode:
                 raise RuntimeError(f"Client {name} exited with code {proc.returncode}, expected {expected_returncode}")
 

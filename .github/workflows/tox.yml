@@ -20,6 +20,7 @@ jobs:
           repository: eclipse/paho.mqtt.testing
           ref: a4dc694010217b291ee78ee13a6d1db812f9babd
           path: paho.mqtt.testing
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
@@ -27,6 +28,7 @@ jobs:
           cache-dependency-path: |
             tox.ini
             setup.py
+
       - run: pip install tox
       - run: tox -e py
       - uses: codecov/codecov-action@v3
