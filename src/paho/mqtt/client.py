@@ -2196,6 +2196,8 @@ class Client:
 
         return MQTTErrorCode.MQTT_ERR_SUCCESS
 
+
+
     def max_inflight_messages_set(self, inflight: int) -> None:
         """Set the maximum number of messages with QoS>0 that can be part way
         through their network flow at once. Defaults to 20."""
@@ -3296,7 +3298,7 @@ class Client:
             last_msg_in = self._last_msg_in
 
         if self._sock is not None and (now - last_msg_out >= self._keepalive or now - last_msg_in >= self._keepalive):
-            if self._state == _ConnectionState.MQTT_CS_CONNECTED and self._ping_t == 0:
+            if self._state == _ConnectionState.MQTT_CS_CONNECTED and (self._ping_t == 0 or now - last_msg_in < self.keepalive):
                 try:
                     self._send_pingreq()
                 except Exception:
