@@ -41,6 +41,8 @@ class SubscribeOptions:
     RETAIN_SEND_ON_SUBSCRIBE, RETAIN_SEND_IF_NEW_SUB, RETAIN_DO_NOT_SEND = range(
         0, 3)
 
+    __slots__ = ["QoS", "noLocal", "retainAsPublished", "retainHandling"]
+
     def __init__(
         self,
         qos: int = 0,
@@ -55,8 +57,6 @@ class SubscribeOptions:
         retainHandling:     RETAIN_SEND_ON_SUBSCRIBE, RETAIN_SEND_IF_NEW_SUB or RETAIN_DO_NOT_SEND
                             RETAIN_SEND_ON_SUBSCRIBE is the default and corresponds to MQTT v3.1.1 behavior.
         """
-        object.__setattr__(self, "names",
-                           ["QoS", "noLocal", "retainAsPublished", "retainHandling"])
         self.QoS = qos  # bits 0,1
         self.noLocal = noLocal  # bit 2
         self.retainAsPublished = retainAsPublished  # bit 3
@@ -65,12 +65,6 @@ class SubscribeOptions:
             raise AssertionError(f"Retain handling should be 0, 1 or 2, not {self.retainHandling}")
         if self.QoS not in (0, 1, 2):
             raise AssertionError(f"QoS should be 0, 1 or 2, not {self.QoS}")
-
-    def __setattr__(self, name, value):
-        if name not in self.names:
-            raise MQTTException(
-                f"{name} Attribute name must be one of {self.names}")
-        object.__setattr__(self, name, value)
 
     def pack(self):
         if self.retainHandling not in (0, 1, 2):

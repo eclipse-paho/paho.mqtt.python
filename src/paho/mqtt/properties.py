@@ -151,90 +151,94 @@ class Properties:
 
     """
 
+    types = ["Byte", "Two Byte Integer", "Four Byte Integer", "Variable Byte Integer",
+             "Binary Data", "UTF-8 Encoded String", "UTF-8 String Pair"]
+    names = {
+        "Payload Format Indicator": 1,
+        "Message Expiry Interval": 2,
+        "Content Type": 3,
+        "Response Topic": 8,
+        "Correlation Data": 9,
+        "Subscription Identifier": 11,
+        "Session Expiry Interval": 17,
+        "Assigned Client Identifier": 18,
+        "Server Keep Alive": 19,
+        "Authentication Method": 21,
+        "Authentication Data": 22,
+        "Request Problem Information": 23,
+        "Will Delay Interval": 24,
+        "Request Response Information": 25,
+        "Response Information": 26,
+        "Server Reference": 28,
+        "Reason String": 31,
+        "Receive Maximum": 33,
+        "Topic Alias Maximum": 34,
+        "Topic Alias": 35,
+        "Maximum QoS": 36,
+        "Retain Available": 37,
+        "User Property": 38,
+        "Maximum Packet Size": 39,
+        "Wildcard Subscription Available": 40,
+        "Subscription Identifier Available": 41,
+        "Shared Subscription Available": 42
+    }
+
+    _idents = {v: k for k, v in names.items()}
+
+    properties = {
+        # id:  type, packets
+        # payload format indicator
+        1: (types.index("Byte"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
+        2: (types.index("Four Byte Integer"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
+        3: (types.index("UTF-8 Encoded String"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
+        8: (types.index("UTF-8 Encoded String"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
+        9: (types.index("Binary Data"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
+        11: (types.index("Variable Byte Integer"),
+                [PacketTypes.PUBLISH, PacketTypes.SUBSCRIBE]),
+        17: (types.index("Four Byte Integer"),
+                [PacketTypes.CONNECT, PacketTypes.CONNACK, PacketTypes.DISCONNECT]),
+        18: (types.index("UTF-8 Encoded String"), [PacketTypes.CONNACK]),
+        19: (types.index("Two Byte Integer"), [PacketTypes.CONNACK]),
+        21: (types.index("UTF-8 Encoded String"),
+                [PacketTypes.CONNECT, PacketTypes.CONNACK, PacketTypes.AUTH]),
+        22: (types.index("Binary Data"),
+                [PacketTypes.CONNECT, PacketTypes.CONNACK, PacketTypes.AUTH]),
+        23: (types.index("Byte"),
+                [PacketTypes.CONNECT]),
+        24: (types.index("Four Byte Integer"), [PacketTypes.WILLMESSAGE]),
+        25: (types.index("Byte"), [PacketTypes.CONNECT]),
+        26: (types.index("UTF-8 Encoded String"), [PacketTypes.CONNACK]),
+        28: (types.index("UTF-8 Encoded String"),
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]),
+        31: (types.index("UTF-8 Encoded String"),
+                [PacketTypes.CONNACK, PacketTypes.PUBACK, PacketTypes.PUBREC,
+                PacketTypes.PUBREL, PacketTypes.PUBCOMP, PacketTypes.SUBACK,
+                PacketTypes.UNSUBACK, PacketTypes.DISCONNECT, PacketTypes.AUTH]),
+        33: (types.index("Two Byte Integer"),
+                [PacketTypes.CONNECT, PacketTypes.CONNACK]),
+        34: (types.index("Two Byte Integer"),
+                [PacketTypes.CONNECT, PacketTypes.CONNACK]),
+        35: (types.index("Two Byte Integer"), [PacketTypes.PUBLISH]),
+        36: (types.index("Byte"), [PacketTypes.CONNACK]),
+        37: (types.index("Byte"), [PacketTypes.CONNACK]),
+        38: (types.index("UTF-8 String Pair"),
+                [PacketTypes.CONNECT, PacketTypes.CONNACK,
+                PacketTypes.PUBLISH, PacketTypes.PUBACK,
+                PacketTypes.PUBREC, PacketTypes.PUBREL, PacketTypes.PUBCOMP,
+                PacketTypes.SUBSCRIBE, PacketTypes.SUBACK,
+                PacketTypes.UNSUBSCRIBE, PacketTypes.UNSUBACK,
+                PacketTypes.DISCONNECT, PacketTypes.AUTH, PacketTypes.WILLMESSAGE]),
+        39: (types.index("Four Byte Integer"),
+                [PacketTypes.CONNECT, PacketTypes.CONNACK]),
+        40: (types.index("Byte"), [PacketTypes.CONNACK]),
+        41: (types.index("Byte"), [PacketTypes.CONNACK]),
+        42: (types.index("Byte"), [PacketTypes.CONNACK]),
+    }
+
+    privateVars = ["packetType", "types", "names", "properties"]
+
     def __init__(self, packetType):
         self.packetType = packetType
-        self.types = ["Byte", "Two Byte Integer", "Four Byte Integer", "Variable Byte Integer",
-                      "Binary Data", "UTF-8 Encoded String", "UTF-8 String Pair"]
-
-        self.names = {
-            "Payload Format Indicator": 1,
-            "Message Expiry Interval": 2,
-            "Content Type": 3,
-            "Response Topic": 8,
-            "Correlation Data": 9,
-            "Subscription Identifier": 11,
-            "Session Expiry Interval": 17,
-            "Assigned Client Identifier": 18,
-            "Server Keep Alive": 19,
-            "Authentication Method": 21,
-            "Authentication Data": 22,
-            "Request Problem Information": 23,
-            "Will Delay Interval": 24,
-            "Request Response Information": 25,
-            "Response Information": 26,
-            "Server Reference": 28,
-            "Reason String": 31,
-            "Receive Maximum": 33,
-            "Topic Alias Maximum": 34,
-            "Topic Alias": 35,
-            "Maximum QoS": 36,
-            "Retain Available": 37,
-            "User Property": 38,
-            "Maximum Packet Size": 39,
-            "Wildcard Subscription Available": 40,
-            "Subscription Identifier Available": 41,
-            "Shared Subscription Available": 42
-        }
-
-        self.properties = {
-            # id:  type, packets
-            # payload format indicator
-            1: (self.types.index("Byte"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
-            2: (self.types.index("Four Byte Integer"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
-            3: (self.types.index("UTF-8 Encoded String"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
-            8: (self.types.index("UTF-8 Encoded String"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
-            9: (self.types.index("Binary Data"), [PacketTypes.PUBLISH, PacketTypes.WILLMESSAGE]),
-            11: (self.types.index("Variable Byte Integer"),
-                 [PacketTypes.PUBLISH, PacketTypes.SUBSCRIBE]),
-            17: (self.types.index("Four Byte Integer"),
-                 [PacketTypes.CONNECT, PacketTypes.CONNACK, PacketTypes.DISCONNECT]),
-            18: (self.types.index("UTF-8 Encoded String"), [PacketTypes.CONNACK]),
-            19: (self.types.index("Two Byte Integer"), [PacketTypes.CONNACK]),
-            21: (self.types.index("UTF-8 Encoded String"),
-                 [PacketTypes.CONNECT, PacketTypes.CONNACK, PacketTypes.AUTH]),
-            22: (self.types.index("Binary Data"),
-                 [PacketTypes.CONNECT, PacketTypes.CONNACK, PacketTypes.AUTH]),
-            23: (self.types.index("Byte"),
-                 [PacketTypes.CONNECT]),
-            24: (self.types.index("Four Byte Integer"), [PacketTypes.WILLMESSAGE]),
-            25: (self.types.index("Byte"), [PacketTypes.CONNECT]),
-            26: (self.types.index("UTF-8 Encoded String"), [PacketTypes.CONNACK]),
-            28: (self.types.index("UTF-8 Encoded String"),
-                 [PacketTypes.CONNACK, PacketTypes.DISCONNECT]),
-            31: (self.types.index("UTF-8 Encoded String"),
-                 [PacketTypes.CONNACK, PacketTypes.PUBACK, PacketTypes.PUBREC,
-                  PacketTypes.PUBREL, PacketTypes.PUBCOMP, PacketTypes.SUBACK,
-                  PacketTypes.UNSUBACK, PacketTypes.DISCONNECT, PacketTypes.AUTH]),
-            33: (self.types.index("Two Byte Integer"),
-                 [PacketTypes.CONNECT, PacketTypes.CONNACK]),
-            34: (self.types.index("Two Byte Integer"),
-                 [PacketTypes.CONNECT, PacketTypes.CONNACK]),
-            35: (self.types.index("Two Byte Integer"), [PacketTypes.PUBLISH]),
-            36: (self.types.index("Byte"), [PacketTypes.CONNACK]),
-            37: (self.types.index("Byte"), [PacketTypes.CONNACK]),
-            38: (self.types.index("UTF-8 String Pair"),
-                 [PacketTypes.CONNECT, PacketTypes.CONNACK,
-                  PacketTypes.PUBLISH, PacketTypes.PUBACK,
-                  PacketTypes.PUBREC, PacketTypes.PUBREL, PacketTypes.PUBCOMP,
-                  PacketTypes.SUBSCRIBE, PacketTypes.SUBACK,
-                  PacketTypes.UNSUBSCRIBE, PacketTypes.UNSUBACK,
-                  PacketTypes.DISCONNECT, PacketTypes.AUTH, PacketTypes.WILLMESSAGE]),
-            39: (self.types.index("Four Byte Integer"),
-                 [PacketTypes.CONNECT, PacketTypes.CONNACK]),
-            40: (self.types.index("Byte"), [PacketTypes.CONNACK]),
-            41: (self.types.index("Byte"), [PacketTypes.CONNACK]),
-            42: (self.types.index("Byte"), [PacketTypes.CONNACK]),
-        }
 
     def allowsMultiple(self, compressedName):
         return self.getIdentFromName(compressedName) in [11, 38]
@@ -242,7 +246,7 @@ class Properties:
     def getIdentFromName(self, compressedName):
         # return the identifier corresponding to the property name
         result = -1
-        for name in self.names.keys():
+        for name in self.names:
             if compressedName == name.replace(' ', ''):
                 result = self.names[name]
                 break
@@ -250,14 +254,13 @@ class Properties:
 
     def __setattr__(self, name, value):
         name = name.replace(' ', '')
-        privateVars = ["packetType", "types", "names", "properties"]
-        if name in privateVars:
+        if name in self.privateVars:
             object.__setattr__(self, name, value)
         else:
             # the name could have spaces in, or not.  Remove spaces before assignment
-            if name not in [aname.replace(' ', '') for aname in self.names.keys()]:
+            if name not in [aname.replace(' ', '') for aname in self.names]:
                 raise MQTTException(
-                    f"Property name must be one of {self.names.keys()}")
+                    f"Property name must be one of {list(self.names)}")
             # check that this attribute applies to the packet type
             if self.packetType not in self.properties[self.getIdentFromName(name)][1]:
                 raise MQTTException(f"Property {name} does not apply to packet type {PacketTypes.Names[self.packetType]}")
@@ -292,7 +295,7 @@ class Properties:
     def __str__(self):
         buffer = "["
         first = True
-        for name in self.names.keys():
+        for name in self.names:
             compressedName = name.replace(' ', '')
             if hasattr(self, compressedName):
                 if not first:
@@ -304,7 +307,7 @@ class Properties:
 
     def json(self):
         data = {}
-        for name in self.names.keys():
+        for name in self.names:
             compressedName = name.replace(' ', '')
             if hasattr(self, compressedName):
                 val = getattr(self, compressedName)
@@ -316,7 +319,7 @@ class Properties:
 
     def isEmpty(self):
         rc = True
-        for name in self.names.keys():
+        for name in self.names:
             compressedName = name.replace(' ', '')
             if hasattr(self, compressedName):
                 rc = False
@@ -324,7 +327,7 @@ class Properties:
         return rc
 
     def clear(self):
-        for name in self.names.keys():
+        for name in self.names:
             compressedName = name.replace(' ', '')
             if hasattr(self, compressedName):
                 delattr(self, compressedName)
@@ -351,7 +354,7 @@ class Properties:
     def pack(self):
         # serialize properties into buffer for sending over network
         buffer = b""
-        for name in self.names.keys():
+        for name in self.names:
             compressedName = name.replace(' ', '')
             if hasattr(self, compressedName):
                 identifier = self.getIdentFromName(compressedName)
@@ -390,11 +393,7 @@ class Properties:
         return value, valuelen
 
     def getNameFromIdent(self, identifier):
-        rc = None
-        for name in self.names:
-            if self.names[name] == identifier:
-                rc = name
-        return rc
+        return self._idents[identifier]
 
     def unpack(self, buffer):
         self.clear()

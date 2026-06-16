@@ -29,6 +29,82 @@ class ReasonCode:
     names and the packets to which they apply.
 
     """
+    names = {
+        0: {"Success": [PacketTypes.CONNACK, PacketTypes.PUBACK,
+                        PacketTypes.PUBREC, PacketTypes.PUBREL, PacketTypes.PUBCOMP,
+                        PacketTypes.UNSUBACK, PacketTypes.AUTH],
+            "Normal disconnection": [PacketTypes.DISCONNECT],
+            "Granted QoS 0": [PacketTypes.SUBACK]},
+        1: {"Granted QoS 1": [PacketTypes.SUBACK]},
+        2: {"Granted QoS 2": [PacketTypes.SUBACK]},
+        4: {"Disconnect with will message": [PacketTypes.DISCONNECT]},
+        16: {"No matching subscribers":
+                [PacketTypes.PUBACK, PacketTypes.PUBREC]},
+        17: {"No subscription found": [PacketTypes.UNSUBACK]},
+        24: {"Continue authentication": [PacketTypes.AUTH]},
+        25: {"Re-authenticate": [PacketTypes.AUTH]},
+        128: {"Unspecified error": [PacketTypes.CONNACK, PacketTypes.PUBACK,
+                                    PacketTypes.PUBREC, PacketTypes.SUBACK, PacketTypes.UNSUBACK,
+                                    PacketTypes.DISCONNECT], },
+        129: {"Malformed packet":
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        130: {"Protocol error":
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        131: {"Implementation specific error": [PacketTypes.CONNACK,
+                                                PacketTypes.PUBACK, PacketTypes.PUBREC, PacketTypes.SUBACK,
+                                                PacketTypes.UNSUBACK, PacketTypes.DISCONNECT], },
+        132: {"Unsupported protocol version": [PacketTypes.CONNACK]},
+        133: {"Client identifier not valid": [PacketTypes.CONNACK]},
+        134: {"Bad user name or password": [PacketTypes.CONNACK]},
+        135: {"Not authorized": [PacketTypes.CONNACK, PacketTypes.PUBACK,
+                                    PacketTypes.PUBREC, PacketTypes.SUBACK, PacketTypes.UNSUBACK,
+                                    PacketTypes.DISCONNECT], },
+        136: {"Server unavailable": [PacketTypes.CONNACK]},
+        137: {"Server busy": [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        138: {"Banned": [PacketTypes.CONNACK]},
+        139: {"Server shutting down": [PacketTypes.DISCONNECT]},
+        140: {"Bad authentication method":
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        141: {"Keep alive timeout": [PacketTypes.DISCONNECT]},
+        142: {"Session taken over": [PacketTypes.DISCONNECT]},
+        143: {"Topic filter invalid":
+                [PacketTypes.SUBACK, PacketTypes.UNSUBACK, PacketTypes.DISCONNECT]},
+        144: {"Topic name invalid":
+                [PacketTypes.CONNACK, PacketTypes.PUBACK,
+                PacketTypes.PUBREC, PacketTypes.DISCONNECT]},
+        145: {"Packet identifier in use":
+                [PacketTypes.PUBACK, PacketTypes.PUBREC,
+                PacketTypes.SUBACK, PacketTypes.UNSUBACK]},
+        146: {"Packet identifier not found":
+                [PacketTypes.PUBREL, PacketTypes.PUBCOMP]},
+        147: {"Receive maximum exceeded": [PacketTypes.DISCONNECT]},
+        148: {"Topic alias invalid": [PacketTypes.DISCONNECT]},
+        149: {"Packet too large": [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        150: {"Message rate too high": [PacketTypes.DISCONNECT]},
+        151: {"Quota exceeded": [PacketTypes.CONNACK, PacketTypes.PUBACK,
+                                    PacketTypes.PUBREC, PacketTypes.SUBACK, PacketTypes.DISCONNECT], },
+        152: {"Administrative action": [PacketTypes.DISCONNECT]},
+        153: {"Payload format invalid":
+                [PacketTypes.PUBACK, PacketTypes.PUBREC, PacketTypes.DISCONNECT]},
+        154: {"Retain not supported":
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        155: {"QoS not supported":
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        156: {"Use another server":
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        157: {"Server moved":
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        158: {"Shared subscription not supported":
+                [PacketTypes.SUBACK, PacketTypes.DISCONNECT]},
+        159: {"Connection rate exceeded":
+                [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
+        160: {"Maximum connect time":
+                [PacketTypes.DISCONNECT]},
+        161: {"Subscription identifiers not supported":
+                [PacketTypes.SUBACK, PacketTypes.DISCONNECT]},
+        162: {"Wildcard subscription not supported":
+                [PacketTypes.SUBACK, PacketTypes.DISCONNECT]},
+    }
 
     def __init__(self, packetType: int, aName: str ="Success", identifier: int =-1):
         """
@@ -44,82 +120,6 @@ class ReasonCode:
         """
 
         self.packetType = packetType
-        self.names = {
-            0: {"Success": [PacketTypes.CONNACK, PacketTypes.PUBACK,
-                            PacketTypes.PUBREC, PacketTypes.PUBREL, PacketTypes.PUBCOMP,
-                            PacketTypes.UNSUBACK, PacketTypes.AUTH],
-                "Normal disconnection": [PacketTypes.DISCONNECT],
-                "Granted QoS 0": [PacketTypes.SUBACK]},
-            1: {"Granted QoS 1": [PacketTypes.SUBACK]},
-            2: {"Granted QoS 2": [PacketTypes.SUBACK]},
-            4: {"Disconnect with will message": [PacketTypes.DISCONNECT]},
-            16: {"No matching subscribers":
-                 [PacketTypes.PUBACK, PacketTypes.PUBREC]},
-            17: {"No subscription found": [PacketTypes.UNSUBACK]},
-            24: {"Continue authentication": [PacketTypes.AUTH]},
-            25: {"Re-authenticate": [PacketTypes.AUTH]},
-            128: {"Unspecified error": [PacketTypes.CONNACK, PacketTypes.PUBACK,
-                                        PacketTypes.PUBREC, PacketTypes.SUBACK, PacketTypes.UNSUBACK,
-                                        PacketTypes.DISCONNECT], },
-            129: {"Malformed packet":
-                  [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            130: {"Protocol error":
-                  [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            131: {"Implementation specific error": [PacketTypes.CONNACK,
-                                                    PacketTypes.PUBACK, PacketTypes.PUBREC, PacketTypes.SUBACK,
-                                                    PacketTypes.UNSUBACK, PacketTypes.DISCONNECT], },
-            132: {"Unsupported protocol version": [PacketTypes.CONNACK]},
-            133: {"Client identifier not valid": [PacketTypes.CONNACK]},
-            134: {"Bad user name or password": [PacketTypes.CONNACK]},
-            135: {"Not authorized": [PacketTypes.CONNACK, PacketTypes.PUBACK,
-                                     PacketTypes.PUBREC, PacketTypes.SUBACK, PacketTypes.UNSUBACK,
-                                     PacketTypes.DISCONNECT], },
-            136: {"Server unavailable": [PacketTypes.CONNACK]},
-            137: {"Server busy": [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            138: {"Banned": [PacketTypes.CONNACK]},
-            139: {"Server shutting down": [PacketTypes.DISCONNECT]},
-            140: {"Bad authentication method":
-                  [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            141: {"Keep alive timeout": [PacketTypes.DISCONNECT]},
-            142: {"Session taken over": [PacketTypes.DISCONNECT]},
-            143: {"Topic filter invalid":
-                  [PacketTypes.SUBACK, PacketTypes.UNSUBACK, PacketTypes.DISCONNECT]},
-            144: {"Topic name invalid":
-                  [PacketTypes.CONNACK, PacketTypes.PUBACK,
-                   PacketTypes.PUBREC, PacketTypes.DISCONNECT]},
-            145: {"Packet identifier in use":
-                  [PacketTypes.PUBACK, PacketTypes.PUBREC,
-                   PacketTypes.SUBACK, PacketTypes.UNSUBACK]},
-            146: {"Packet identifier not found":
-                  [PacketTypes.PUBREL, PacketTypes.PUBCOMP]},
-            147: {"Receive maximum exceeded": [PacketTypes.DISCONNECT]},
-            148: {"Topic alias invalid": [PacketTypes.DISCONNECT]},
-            149: {"Packet too large": [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            150: {"Message rate too high": [PacketTypes.DISCONNECT]},
-            151: {"Quota exceeded": [PacketTypes.CONNACK, PacketTypes.PUBACK,
-                                     PacketTypes.PUBREC, PacketTypes.SUBACK, PacketTypes.DISCONNECT], },
-            152: {"Administrative action": [PacketTypes.DISCONNECT]},
-            153: {"Payload format invalid":
-                  [PacketTypes.PUBACK, PacketTypes.PUBREC, PacketTypes.DISCONNECT]},
-            154: {"Retain not supported":
-                  [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            155: {"QoS not supported":
-                  [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            156: {"Use another server":
-                  [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            157: {"Server moved":
-                  [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            158: {"Shared subscription not supported":
-                  [PacketTypes.SUBACK, PacketTypes.DISCONNECT]},
-            159: {"Connection rate exceeded":
-                  [PacketTypes.CONNACK, PacketTypes.DISCONNECT]},
-            160: {"Maximum connect time":
-                  [PacketTypes.DISCONNECT]},
-            161: {"Subscription identifiers not supported":
-                  [PacketTypes.SUBACK, PacketTypes.DISCONNECT]},
-            162: {"Wildcard subscription not supported":
-                  [PacketTypes.SUBACK, PacketTypes.DISCONNECT]},
-        }
         if identifier == -1:
             if packetType == PacketTypes.DISCONNECT and aName == "Success":
                 aName = "Normal disconnection"
@@ -128,7 +128,7 @@ class ReasonCode:
             self.value = identifier
             self.getName()  # check it's good
 
-    def __getName__(self, packetType, identifier):
+    def _getName(self, packetType, identifier):
         """
         Get the reason code string name for a specific identifier.
         The name can vary by packet type for the same identifier, which
@@ -162,14 +162,14 @@ class ReasonCode:
 
     def unpack(self, buffer):
         c = buffer[0]
-        name = self.__getName__(self.packetType, c)
+        name = self._getName(self.packetType, c)
         self.value = self.getId(name)
         return 1
 
     def getName(self):
         """Returns the reason code name corresponding to the numeric value which is set.
         """
-        return self.__getName__(self.packetType, self.value)
+        return self._getName(self.packetType, self.value)
 
     def __eq__(self, other):
         if isinstance(other, int):
