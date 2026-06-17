@@ -13,6 +13,7 @@
 #   Contributors:
 #      Ian Craggs - initial implementation and/or documentation
 # *******************************************************************
+from __future__ import annotations
 
 import functools
 import warnings
@@ -31,7 +32,7 @@ class ReasonCode:
 
     """
 
-    names = MappingProxyType(
+    names: MappingProxyType | dict = MappingProxyType(
         {
             0: {
                 "Success": [
