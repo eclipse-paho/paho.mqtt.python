@@ -3351,6 +3351,8 @@ class Client:
         self, packet: bytearray, remaining_length: int
     ) -> bytearray:
         remaining_bytes = []
+        if remaining_length > 268_435_455:
+            raise ValueError("Packet too large")
         while True:
             byte = remaining_length % 128
             remaining_length = remaining_length // 128
@@ -3361,7 +3363,6 @@ class Client:
             remaining_bytes.append(byte)
             packet.append(byte)
             if remaining_length == 0:
-                # FIXME - this doesn't deal with incorrectly large payloads
                 return packet
 
     def _pack_str16(self, packet: bytearray, data: bytearray | bytes | str) -> None:
