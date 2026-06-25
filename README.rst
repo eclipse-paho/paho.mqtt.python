@@ -121,6 +121,7 @@ Here is a very simple example that subscribes to the broker $SYS topic tree and 
 .. code:: python
 
     import paho.mqtt.client as mqtt
+    from paho.mqtt.enums import CallbackAPIVersion
 
     # The callback for when the client receives a CONNACK response from the server.
     def on_connect(client, userdata, flags, reason_code, properties):
@@ -133,7 +134,7 @@ Here is a very simple example that subscribes to the broker $SYS topic tree and 
     def on_message(client, userdata, msg):
         print(msg.topic+" "+str(msg.payload))
 
-    mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mqttc = mqtt.Client(CallbackAPIVersion.VERSION2)
     mqttc.on_connect = on_connect
     mqttc.on_message = on_message
 
@@ -271,6 +272,7 @@ Subscriber example
 .. code:: python
 
     import paho.mqtt.client as mqtt
+    from paho.mqtt.enums import CallbackAPIVersion
 
     def on_subscribe(client, userdata, mid, reason_code_list, properties):
         # Since we subscribed only for a single channel, reason_code_list contains
@@ -304,7 +306,7 @@ Subscriber example
             # our subscribed is persisted across reconnections.
             client.subscribe("$SYS/#")
 
-    mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mqttc = mqtt.Client(CallbackAPIVersion.VERSION2)
     mqttc.on_connect = on_connect
     mqttc.on_message = on_message
     mqttc.on_subscribe = on_subscribe
@@ -322,6 +324,7 @@ publisher example
 
     import time
     import paho.mqtt.client as mqtt
+    from paho.mqtt.enums import CallbackAPIVersion
 
     def on_publish(client, userdata, mid, reason_code, properties):
         # reason_code and properties will only be present in MQTTv5. It's always unset in MQTTv3
@@ -341,7 +344,7 @@ publisher example
             print("but remember that mid could be re-used !")
 
     unacked_publish = set()
-    mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mqttc = mqtt.Client(CallbackAPIVersion.VERSION2)
     mqttc.on_publish = on_publish
     
     mqttc.user_data_set(unacked_publish)
@@ -380,10 +383,11 @@ Example:
 
     import logging
     import paho.mqtt.client as mqtt
+    from paho.mqtt.enums import CallbackAPIVersion
 
     logging.basicConfig(level=logging.DEBUG)
 
-    mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mqttc = mqtt.Client(CallbackAPIVersion.VERSION2)
     mqttc.enable_logger()
 
     mqttc.connect("test.mosquitto.org", 1883, 60)
@@ -397,12 +401,13 @@ It's also possible to define a on_log callback that will receive a copy of all l
 .. code:: python
 
     import paho.mqtt.client as mqtt
+    from paho.mqtt.enums import CallbackAPIVersion
 
     def on_log(client, userdata, paho_log_level, messages):
         if paho_log_level == mqtt.LogLevel.MQTT_LOG_ERR:
             print(message)
 
-    mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mqttc = mqtt.Client(CallbackAPIVersion.VERSION2)
     mqttc.on_log = on_log
 
     mqttc.connect("test.mosquitto.org", 1883, 60)
