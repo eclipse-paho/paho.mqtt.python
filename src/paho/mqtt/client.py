@@ -92,7 +92,8 @@ if TYPE_CHECKING:
             ...
         def setblocking(self, flag: bool) -> None:
             ...
-
+        def setsockopt(self, level: int, optname: int, value: Any) -> None:
+            ...
 
 try:
     import ssl
@@ -5005,3 +5006,6 @@ class _WebsocketWrapper:
 
     def setblocking(self, flag: bool) -> None:
         self._socket.setblocking(flag)
+
+    def setsockopt(self, level: int, optname: int, value: Any) -> None:
+        self._socket.setsockopt(level, optname, value)
