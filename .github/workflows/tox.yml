@@ -1,9 +1,7 @@
 name: tox
 on:
   pull_request:
-    branches: [master]
   push:
-    branches: [master]
 jobs:
   tox:
     strategy:
