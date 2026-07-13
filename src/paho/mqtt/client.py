@@ -445,7 +445,7 @@ def _socketpair_compat() -> tuple[socket.socket, socket.socket]:
     listensock.bind(("127.0.0.1", 0))
     listensock.listen(1)
 
-    iface, port = listensock.getsockname()
+    _iface, port = listensock.getsockname()
     sock1 = socket.socket(
         socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
     sock1.setblocking(False)
@@ -453,7 +453,7 @@ def _socketpair_compat() -> tuple[socket.socket, socket.socket]:
         sock1.connect(("127.0.0.1", port))
     except BlockingIOError:
         pass
-    sock2, address = listensock.accept()
+    sock2, _address = listensock.accept()
     sock2.setblocking(False)
     listensock.close()
     return (sock1, sock2)
@@ -494,7 +494,7 @@ class MQTTMessageInfo:
     message has been published, and/or wait until it is published.
     """
 
-    __slots__ = 'mid', '_published', '_condition', 'rc', '_iterpos'
+    __slots__ = '_condition', '_iterpos', '_published', 'mid', 'rc'
 
     def __init__(self, mid: int):
         self.mid = mid
@@ -591,7 +591,7 @@ class MQTTMessage:
     """ This is a class that describes an incoming message. It is
     passed to the `on_message` callback as the message parameter.
     """
-    __slots__ = 'timestamp', 'state', 'dup', 'mid', '_topic', 'payload', 'qos', 'retain', 'info', 'properties'
+    __slots__ = '_topic', 'dup', 'info', 'mid', 'payload', 'properties', 'qos', 'retain', 'state', 'timestamp'
 
     def __init__(self, mid: int = 0, topic: bytes = b""):
         self.timestamp = 0.0
@@ -1478,7 +1478,7 @@ class Client:
 
         # FIXME: doesn't account for weight
         for answer in answers:
-            host, port, prio, weight = answer
+            host, port, _prio, _weight = answer
 
             try:
                 return self.connect(host, port, keepalive, bind_address, bind_port, clean_start, properties)
@@ -1643,10 +1643,24 @@ class Client:
         if timeout < 0.0:
             raise ValueError('Invalid timeout.')
 
+
+        # Tell mypy 2.2.0 self._sock is not None,
+        # avoiding: error: Value of type variable "_R" of "select" cannot be "SocketLike | None"  [type-var]
+        # (and for "_W") in select.select(rlist, wlist, [], timeout) below.
+        if self._sock is None:
+            msg=(
+                f"Client is not connected. Socket: {self._sock!r}). "
+                f"Last known Connection State: {self._state.name}"
+            )
+            self._easy_log(MQTT_LOG_ERR, msg)
+            return MQTT_ERR_NO_CONN
+
         if self.want_write():
             wlist = [self._sock]
         else:
             wlist = []
+
+
 
         # used to check if there are any bytes left in the (SSL) socket
         pending_bytes = 0
@@ -4027,7 +4041,7 @@ class Client:
             reasonCode.unpack(self._in_packet['packet'])
             if self._in_packet['remaining_length'] > 3:
                 properties = Properties(packet_type)
-                props, props_len = properties.unpack(
+                _props, _props_len = properties.unpack(
                     self._in_packet['packet'][1:])
         self._easy_log(MQTT_LOG_DEBUG, "Received DISCONNECT %s %s",
                        reasonCode,
@@ -4049,7 +4063,7 @@ class Client:
 
         if self._protocol == MQTTv5:
             properties = Properties(SUBACK >> 4)
-            props, props_len = properties.unpack(packet)
+            _props, props_len = properties.unpack(packet)
             reasoncodes = [ReasonCode(SUBACK >> 4, identifier=c) for c in packet[props_len:]]
         else:
             pack_format = f"!{'B' * len(packet)}"
@@ -4124,7 +4138,7 @@ class Client:
 
         if self._protocol == MQTTv5:
             message.properties = Properties(PUBLISH >> 4)
-            props, props_len = message.properties.unpack(packet)
+            _props, props_len = message.properties.unpack(packet)
             packet = packet[props_len:]
 
         message.payload = packet
@@ -4202,7 +4216,7 @@ class Client:
                 reasonCode.unpack(self._in_packet['packet'][2:])
                 if self._in_packet['remaining_length'] > 3:
                     properties = Properties(PUBREL >> 4)
-                    props, props_len = properties.unpack(
+                    _props, _props_len = properties.unpack(
                         self._in_packet['packet'][3:])
         self._easy_log(MQTT_LOG_DEBUG, "Received PUBREL (Mid: %d)", mid)
 
@@ -4268,7 +4282,7 @@ class Client:
                 reasonCode.unpack(self._in_packet['packet'][2:])
                 if self._in_packet['remaining_length'] > 3:
                     properties = Properties(PUBREC >> 4)
-                    props, props_len = properties.unpack(
+                    _props, _props_len = properties.unpack(
                         self._in_packet['packet'][3:])
         self._easy_log(MQTT_LOG_DEBUG, "Received PUBREC (Mid: %d)", mid)
 
@@ -4292,7 +4306,7 @@ class Client:
         if self._protocol == MQTTv5:
             packet = self._in_packet['packet'][2:]
             properties = Properties(UNSUBACK >> 4)
-            props, props_len = properties.unpack(packet)
+            _props, props_len = properties.unpack(packet)
             reasoncodes_list = [
                 ReasonCode(UNSUBACK >> 4, identifier=c)
                 for c in packet[props_len:]
@@ -4455,7 +4469,7 @@ class Client:
             if self._in_packet['remaining_length'] > 2:
                 reasonCode.unpack(self._in_packet['packet'][2:])
                 if self._in_packet['remaining_length'] > 3:
-                    props, props_len = properties.unpack(
+                    _props, _props_len = properties.unpack(
                         self._in_packet['packet'][3:])
         self._easy_log(MQTT_LOG_DEBUG, "Received %s (Mid: %d)", cmd, mid)
 
