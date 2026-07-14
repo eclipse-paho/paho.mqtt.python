@@ -24,21 +24,25 @@ def _yield_server(monkeypatch, sockport):
 def server_socket(monkeypatch):
     yield from _yield_server(monkeypatch, create_server_socket())
 
-
-@pytest.fixture()
-def ssl_server_socket(monkeypatch):
+@pytest.fixture(scope="session")
+def ssl_certs_path(tmp_path_factory):
     if ssl is None:
         pytest.skip("no ssl module")
-    yield from _yield_server(monkeypatch, create_server_socket_ssl())
+    path=tmp_path_factory.mktemp("ssl_certs")
+    subprocess.run(str((ssl_path / "gen.sh").resolve()), shell=True, cwd=path, check=True) # noqa: S602
+    yield path
 
 
 @pytest.fixture()
-def alpn_ssl_server_socket(monkeypatch):
-    if ssl is None:
-        pytest.skip("no ssl module")
+def ssl_server_socket(monkeypatch, ssl_certs_path):
+    yield from _yield_server(monkeypatch, create_server_socket_ssl(path=ssl_certs_path))
+
+
+@pytest.fixture()
+def alpn_ssl_server_socket(monkeypatch, ssl_certs_path):
     if not getattr(ssl, "HAS_ALPN", False):
         pytest.skip("ALPN not supported in this version of Python")
-    yield from _yield_server(monkeypatch, create_server_socket_ssl(alpn_protocols=["paho-test-protocol"]))
+    yield from _yield_server(monkeypatch, create_server_socket_ssl(path=ssl_certs_path, alpn_protocols=["paho-test-protocol"]))
 
 
 def stop_process(proc: subprocess.Popen) -> None:
@@ -61,14 +65,14 @@ def stop_process(proc: subprocess.Popen) -> None:
 
 
 @pytest.fixture()
-def start_client(request: pytest.FixtureRequest):
+def start_client(request: pytest.FixtureRequest, ssl_certs_path):
     def starter(name: str, expected_returncode: int = 0) -> None:
         client_path = clients_path / name
         if not client_path.exists():
             raise FileNotFoundError(client_path)
         env = dict(
             os.environ,
-            PAHO_SSL_PATH=str(ssl_path),
+            PAHO_SSL_PATH=str(ssl_certs_path),
             PYTHONPATH=f"{tests_path}{os.pathsep}{os.environ.get('PYTHONPATH', '')}",
         )
         assert 'PAHO_SERVER_PORT' in env, "PAHO_SERVER_PORT must be set in the environment when starting a client"
