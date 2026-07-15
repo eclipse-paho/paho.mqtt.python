@@ -23,6 +23,22 @@ from typing import Any
 from .packettypes import PacketTypes
 
 
+def _build_lookup_maps(names):
+    name_by_packet_identifier = {}
+    id_by_packet_name = {}
+
+    for identifier, reason_names in names.items():
+        for name, packet_types in reason_names.items():
+            for packet_type in packet_types:
+                name_by_packet_identifier[(packet_type, identifier)] = name
+                id_by_packet_name[(packet_type, name)] = identifier
+
+    return (
+        MappingProxyType(name_by_packet_identifier),
+        MappingProxyType(id_by_packet_name),
+    )
+
+
 @functools.total_ordering
 class ReasonCode:
     """MQTT version 5.0 reason codes class.
@@ -107,6 +123,8 @@ class ReasonCode:
         }
     )
 
+    _name_by_packet_identifier, _id_by_packet_name = _build_lookup_maps(names)
+
     def __init__(self, packetType: int, aName: str = "Success", identifier: int = -1):
         """
         packetType: the type of the packet, such as PacketTypes.CONNECT that
@@ -120,7 +138,6 @@ class ReasonCode:
 
         """
 
-        self.names = dict(type(self).names)
         self.packetType = packetType
         if identifier == -1:
             if packetType == PacketTypes.DISCONNECT and aName == "Success":
@@ -140,11 +157,10 @@ class ReasonCode:
         """
         if identifier not in self.names:
             raise KeyError(identifier)
-        names = self.names[identifier]
-        namelist = [name for name in names.keys() if packetType in names[name]]
-        if len(namelist) != 1:
-            raise ValueError(f"Expected exactly one name, found {namelist!r}")
-        return namelist[0]
+        try:
+            return self._name_by_packet_identifier[(packetType, identifier)]
+        except KeyError as err:
+            raise ValueError("Expected exactly one name, found []") from err
 
     def getId(self, name: str) -> int:
         """
@@ -153,19 +169,18 @@ class ReasonCode:
         Used when setting the reason code for a packetType
         check that only valid codes for the packet are set.
         """
-        for code in self.names.keys():
-            if name in self.names[code].keys():
-                if self.packetType in self.names[code][name]:
-                    return code
-        raise KeyError(f"Reason code name not found: {name}")
+        try:
+            return self._id_by_packet_name[(self.packetType, name)]
+        except KeyError as err:
+            raise KeyError(f"Reason code name not found: {name}") from err
 
     def set(self, name: str) -> None:
         self.value = self.getId(name)
 
     def unpack(self, buffer: bytearray) -> int:
         c = buffer[0]
-        name = self.__getName__(self.packetType, c)
-        self.value = self.getId(name)
+        self.__getName__(self.packetType, c)
+        self.value = c
         return 1
 
     def getName(self) -> str:

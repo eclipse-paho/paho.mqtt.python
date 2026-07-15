@@ -755,6 +755,7 @@ class TestCompatibility:
 
     def test_callback_v1_mqtt3(self, fake_broker):
         callback_called = []
+        on_disconnect_reached = threading.Event()
         with pytest.deprecated_call():
             mqttc = client.Client(
                 CallbackAPIVersion.VERSION1,
@@ -800,6 +801,7 @@ class TestCompatibility:
             assert isinstance(cl, client.Client)
             assert isinstance(rc, int)
             userdata.append("on_disconnect")
+            on_disconnect_reached.set()
 
         mqttc.on_connect = on_connect
         mqttc.on_subscribe = on_subscribe
@@ -863,6 +865,7 @@ class TestCompatibility:
 
             disconnect_packet = paho_test.gen_disconnect()
             fake_broker.expect_packet("disconnect", disconnect_packet)
+            assert on_disconnect_reached.wait(1)
 
             assert callback_called == [
                 "on_connect",
@@ -882,6 +885,7 @@ class TestCompatibility:
 
     def test_callback_v2_mqtt3(self, fake_broker):
         callback_called = []
+        on_disconnect_reached = threading.Event()
         mqttc = client.Client(
             CallbackAPIVersion.VERSION2,
             "client-id",
@@ -940,6 +944,7 @@ class TestCompatibility:
             assert isinstance(properties, Properties)
             assert properties.isEmpty()
             userdata.append("on_disconnect")
+            on_disconnect_reached.set()
 
         mqttc.on_connect = on_connect
         mqttc.on_subscribe = on_subscribe
@@ -1003,6 +1008,7 @@ class TestCompatibility:
 
             disconnect_packet = paho_test.gen_disconnect()
             fake_broker.expect_packet("disconnect", disconnect_packet)
+            assert on_disconnect_reached.wait(1)
 
             assert callback_called == [
                 "on_connect",

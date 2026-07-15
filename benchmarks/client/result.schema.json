@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eclipse.dev/paho/benchmarks/client/result.schema.json",
+  "title": "Paho MQTT client benchmark result",
+  "type": "object",
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "scenario": { "type": "string" },
+    "profile": { "type": "string", "enum": ["standard", "smoke"] },
+    "runs": { "type": "integer", "minimum": 1 },
+    "seed": { "type": "integer" },
+    "source_root": { "type": "string" },
+    "broker": { "type": "object" },
+    "environment": { "type": "object" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["point", "runs"],
+        "properties": {
+          "point": { "type": "object" },
+          "runs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["schema_version", "run_id", "status"],
+              "properties": {
+                "schema_version": { "type": "integer" },
+                "run_id": { "type": "string", "minLength": 8, "maxLength": 8 },
+                "status": { "type": "string", "enum": ["valid", "inconclusive"] },
+                "reasons": { "type": "array", "items": { "type": "string" } },
+                "primary_msgs_per_s": { "type": ["number", "null"] },
+                "workers": { "type": "array" },
+                "loadgen": { "type": ["object", "null"] },
+                "telemetry": { "type": "array" },
+                "non_comparable": { "type": "boolean" }
+              }
+            }
+          },
+          "summary": { "type": "object" }
+        }
+      }
+    },
+    "verdict": { "type": "object" },
+    "order": { "type": "array", "items": { "type": "string", "enum": ["A", "B"] } }
+  }
+}

@@ -57,20 +57,19 @@ class MQTTMatcher:
     def iter_match(self, topic):
         """Return an iterator on all values associated with filters
         that match the :topic"""
-        lst = topic.split('/')
+        parts = topic.split('/')
+        nparts = len(parts)
         normal = not topic.startswith('$')
         def rec(node, i=0):
-            if i == len(lst):
+            if i == nparts:
                 if node._content is not None:
                     yield node._content
             else:
-                part = lst[i]
+                part = parts[i]
                 if part in node._children:
-                    for content in rec(node._children[part], i + 1):
-                        yield content
+                    yield from rec(node._children[part], i + 1)
                 if '+' in node._children and (normal or i > 0):
-                    for content in rec(node._children['+'], i + 1):
-                        yield content
+                    yield from rec(node._children['+'], i + 1)
             if '#' in node._children and (normal or i > 0):
                 content = node._children['#']._content
                 if content is not None:

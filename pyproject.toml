@@ -10,7 +10,7 @@ readme = "README.rst"
 # see https://lists.spdx.org/g/Spdx-legal/topic/request_for_adding_eclipse/67981884
 # for why Eclipse Distribution License v1.0 is listed as BSD-3-Clause
 license = { text = "EPL-2.0 OR BSD-3-Clause" }
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 authors = [
     { name = "Roger Light", email = "roger@atchoo.org" },
 ]
@@ -27,10 +27,12 @@ classifiers = [
     "Operating System :: POSIX",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Communications",
     "Topic :: Internet",
 ]

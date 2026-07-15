@@ -1,0 +1,11 @@
+# Generated TLS private material
+certs/*.key
+certs/*.csr
+certs/*.srl
+certs/openssl.cnf
+
+# Large raw run artifacts (keep markdown + compact summaries)
+results/*.json
+results/*.log
+!results/*.summary.json
+!results/.gitkeep

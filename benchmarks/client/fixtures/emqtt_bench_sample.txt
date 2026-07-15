@@ -1,0 +1,4 @@
+1s pub total=40 rate=39.92/sec
+1s connect_succ total=2 rate=2.00/sec
+2s pub total=80 rate=40.00/sec
+recv(28006): total=2102563, rate=99725(msg/sec)

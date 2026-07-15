@@ -1,3 +1,15 @@
+Unreleased
+==========
+
+- Performance: faster packet parsing/encoding, read-ahead batching in the
+  built-in network loop, coalesced socketpair wakeups, adaptive idle deadlines
+  for loop_start() threads, and large immutable payload segmentation.
+  Public API behaviour is unchanged; loop_forever()/loop_stop() still flush
+  pending outgoing traffic before exiting.
+- ``Properties.names``/``Properties.properties`` and ``ReasonCode.names`` are
+  now shared read-only class-level mappings instead of per-instance dicts.
+  Code that mutated these attributes on an instance must copy them first.
+
 v2.1.0 - 2024-04-29
 ===================
 
