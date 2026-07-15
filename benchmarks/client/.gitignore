@@ -4,8 +4,6 @@ certs/*.csr
 certs/*.srl
 certs/openssl.cnf
 
-# Large raw run artifacts (keep markdown + compact summaries)
-results/*.json
-results/*.log
-!results/*.summary.json
+# Local run artifacts (machine-specific; regenerate with the harness)
+results/*
 !results/.gitkeep
