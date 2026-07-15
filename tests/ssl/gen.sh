@@ -21,15 +21,15 @@ BBASESUBJ="/C=GB/ST=Nottinghamshire/L=Nottingham/O=Server/OU=Bridge"
 
 # The root CA
 openssl genrsa -out test-root-ca.key 2048
-openssl req -new -x509 -days 3650 -key test-root-ca.key -out test-root-ca.crt -config openssl.cnf -subj "${BASESUBJ}/CN=Root CA/"
+openssl req -new -x509 -days 365000 -key test-root-ca.key -out test-root-ca.crt -config openssl.cnf -subj "${BASESUBJ}/CN=Root CA/"
 
 # Another root CA that doesn't sign anything
 openssl genrsa -out test-bad-root-ca.key 2048
-openssl req -new -x509 -days 3650 -key test-bad-root-ca.key -out test-bad-root-ca.crt -config openssl.cnf -subj "${BASESUBJ}/CN=Bad Root CA/"
+openssl req -new -x509 -days 365000 -key test-bad-root-ca.key -out test-bad-root-ca.crt -config openssl.cnf -subj "${BASESUBJ}/CN=Bad Root CA/"
 
 # This is a root CA that has the exact same details as the real root CA, but is a different key and certificate. Effectively a "fake" CA.
 openssl genrsa -out test-fake-root-ca.key 2048
-openssl req -new -x509 -days 3650 -key test-fake-root-ca.key -out test-fake-root-ca.crt -config openssl.cnf -subj "${BASESUBJ}/CN=Root CA/"
+openssl req -new -x509 -days 365000 -key test-fake-root-ca.key -out test-fake-root-ca.crt -config openssl.cnf -subj "${BASESUBJ}/CN=Root CA/"
 
 # An intermediate CA, signed by the root CA, used to sign server/client csrs.
 openssl genrsa -out test-signing-ca.key 2048
