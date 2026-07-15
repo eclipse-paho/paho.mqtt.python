@@ -646,7 +646,7 @@ class MQTTMessage:
 
     def __init__(self, mid: int = 0, topic: bytes = b"", *, create_info: bool = True):
         self.timestamp = 0.0
-        self.state = mqtt_ms_invalid
+        self.state: MessageState | _OutgoingCallbackState = mqtt_ms_invalid
         self.dup = False
         self.mid = mid
         """ The message id (int)."""
@@ -1738,15 +1738,19 @@ class Client:
         if timeout < 0.0:
             raise ValueError('Invalid timeout.')
 
+        sock = self._sock
+        if sock is None:
+            return MQTTErrorCode.MQTT_ERR_NO_CONN
+
         if self.want_write():
-            wlist = [self._sock]
+            wlist: list[SocketLike] = [sock]
         else:
             wlist = []
 
         # used to check if there are any bytes left in the (SSL) socket
         pending_bytes = self._read_buffer_pending()
-        if pending_bytes == 0 and hasattr(self._sock, 'pending'):
-            pending_bytes = self._sock.pending()  # type: ignore[union-attr]
+        if pending_bytes == 0 and hasattr(sock, 'pending'):
+            pending_bytes = sock.pending()  # type: ignore[union-attr]
 
         # if bytes are pending do not wait in select
         if pending_bytes > 0:
@@ -1755,9 +1759,9 @@ class Client:
         # sockpairR is used to break out of select() before the timeout, on a
         # call to publish() etc.
         if self._sockpairR is None:
-            rlist = [self._sock]
+            rlist: list[SocketLike] = [sock]
         else:
-            rlist = [self._sock, self._sockpairR]
+            rlist = [sock, self._sockpairR]
 
         try:
             socklist = select.select(rlist, wlist, [], timeout)
@@ -1790,7 +1794,7 @@ class Client:
         if self._sockpairR in socklist[0] and self._sockpairR:
             # Stimulate output write even though we didn't ask for it, because
             # at that point the publish or other command wasn't present.
-            socklist[1].insert(0, self._sock)
+            socklist[1].insert(0, sock)
             # Clear sockpairR under the same lock as wakeup sends so a concurrent
             # publish cannot observe pending=True after the byte was drained.
             with self._sockpair_wakeup_mutex:
@@ -3405,7 +3409,15 @@ class Client:
                 if len(data) == 0:
                     return MQTTErrorCode.MQTT_ERR_CONN_LOST
                 self._in_packet.to_process -= len(data)
-                self._in_packet.packet.extend(data)
+                packet_buf = self._in_packet.packet
+                if isinstance(packet_buf, memoryview):
+                    # Contiguous decode may expose a memoryview; own the bytes
+                    # before appending more socket data.
+                    owned = self._in_packet._packet_buffer
+                    owned[:] = packet_buf
+                    self._in_packet.packet = owned
+                    packet_buf = owned
+                packet_buf.extend(data)
             count -= 1
             if count == 0:
                 with self._msgtime_mutex:
@@ -4798,7 +4810,7 @@ class Client:
     def _finish_outgoing_publish_callback(
         self,
         mid: int,
-        previous_state: MessageState,
+        previous_state: MessageState | _OutgoingCallbackState,
         *,
         callback_succeeded: bool,
     ) -> MQTTErrorCode:
@@ -5466,7 +5478,7 @@ class _WebsocketWrapper:
         self._readbuffer_head = 0
         self._decoded_buffer = bytearray()
         self._decoded_head = 0
-        self._frame_opcode = None
+        self._frame_opcode: int | None = None
         self._frame_final = True
         self._frame_payload_remaining = 0
         self._frame_large = False
