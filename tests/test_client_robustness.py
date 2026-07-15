@@ -13,9 +13,8 @@ import threading
 import urllib.request
 from types import SimpleNamespace
 
-import pytest
-
 import paho.mqtt.client as client
+import pytest
 from paho.mqtt.client import _READAHEAD_CHUNK_SIZE
 from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode
 from paho.mqtt.packettypes import PacketTypes

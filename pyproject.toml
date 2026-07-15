@@ -97,7 +97,11 @@ filterwarnings = [
 ]
 
 [tool.ruff]
-exclude = ["test/lib/python/*"]
+exclude = [
+    "test/lib/python/*",
+    # Local audit/benchmark tooling; not part of the installed package.
+    "benchmarks",
+]
 extend-select = [
     "B",
     "C4",

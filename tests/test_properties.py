@@ -1,5 +1,4 @@
 import pytest
-
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import MalformedPacket, MQTTException, Properties, readUTF, writeUTF
 from paho.mqtt.reasoncodes import ReasonCode
@@ -28,7 +27,7 @@ def test_unpack_accepts_memoryview_and_detaches_binary_properties():
     decoded.unpack(memoryview(packet))
 
     assert decoded.CorrelationData == b"binary-data"
-    assert type(decoded.CorrelationData) is bytes
+    assert type(decoded.CorrelationData) is bytes  # noqa: E721
     assert decoded.UserProperty == [("key", "value")]
 
     packet[:] = b"\x00" * len(packet)
@@ -89,7 +88,7 @@ def test_reason_code_invalid_for_packet_still_fails():
         ReasonCode(PacketTypes.PUBACK, identifier=1)
 
 
-@pytest.mark.parametrize("encoded", [b"\x00", "\ufeff".encode("utf-8")])
+@pytest.mark.parametrize("encoded", [b"\x00", "\ufeff".encode()])
 def test_read_utf_rejects_mqtt_forbidden_characters(encoded):
     field = len(encoded).to_bytes(2, "big") + encoded
 

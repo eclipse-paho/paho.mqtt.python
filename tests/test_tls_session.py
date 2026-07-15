@@ -1,6 +1,5 @@
-import pytest
-
 import paho.mqtt.client as mqtt
+import pytest
 
 
 class FakeSSLSocket:

@@ -184,17 +184,17 @@ def fmt_pct(v: Optional[float]) -> str:
 
 def build_report(summaries: List[dict]) -> str:
     lines: List[str] = []
-    lines.append("# Différentiels benchmark client — smoke core depuis plan 1")
+    lines.append("# Client benchmark deltas — core smoke since plan 1")
     lines.append("")
     lines.append(f"- Timestamp UTC: `{TS}`")
-    lines.append(f"- Profil: `smoke` · suite: `core` · seed: `{SEED}`")
-    lines.append("- Harness: branche `benchmarks` (fixe) · SUT via `--source` worktrees")
-    lines.append("- Δ% = (commit / précédent) − 1 sur médiane `msgs/s` du point")
-    lines.append("- Smoke = bruit élevé ; signes seulement si écarts gros et stables")
+    lines.append(f"- Profile: `smoke` · suite: `core` · seed: `{SEED}`")
+    lines.append("- Harness: fixed `benchmarks` branch · SUT via `--source` worktrees")
+    lines.append("- Delta% = (commit / previous) - 1 on the point median `msgs/s`")
+    lines.append("- Smoke is noisy; treat only large stable gaps as signal")
     lines.append("")
-    lines.append("## Index des commits")
+    lines.append("## Commit index")
     lines.append("")
-    lines.append("| # | SHA | Sujet | Artefact |")
+    lines.append("| # | SHA | Subject | Artifact |")
     lines.append("|---:|---|---|---|")
     for i, s in enumerate(summaries):
         art = f"`core-smoke-{s['sha']}-{TS}`"
@@ -236,9 +236,9 @@ def build_report(summaries: List[dict]) -> str:
         valid_curr = sum(1 for p in curr["points"] if p.get("valid"))
         step_details.append((i, prev, curr, detail_rows, cap_med, valid_curr))
 
-    lines.append("## Résumé des pas (Δ% médian sur points capacity publish)")
+    lines.append("## Step summary (median delta% on capacity publish points)")
     lines.append("")
-    lines.append("| Pas | Prev → Curr | Δ% médian (capacity pub*) | Points valid curr |")
+    lines.append("| Step | Prev → Curr | Median delta% (capacity pub*) | Valid points curr |")
     lines.append("|---|---|---:|---:|")
     for i, prev, curr, detail_rows, cap_med, valid_curr in step_details:
         lines.append(
@@ -247,19 +247,19 @@ def build_report(summaries: List[dict]) -> str:
         )
     lines.append("")
     lines.append(
-        "\\* Points dont la clé contient `cadence=capacity` et un scénario "
-        "`pub_*` / `remaining_length*` / `duplex_*`."
+        "\\* Points whose key contains `cadence=capacity` and a "
+        "`pub_*` / `remaining_length*` / `duplex_*` scenario."
     )
     lines.append("")
 
     for i, prev, curr, detail_rows, cap_med, valid_curr in step_details:
-        lines.append(f"## Pas {i - 1}→{i}: `{prev['sha']}` → `{curr['sha']}`")
+        lines.append(f"## Step {i - 1}→{i}: `{prev['sha']}` → `{curr['sha']}`")
         lines.append("")
-        lines.append(f"- **Précédent:** `{prev['sha']}` — {prev['subject']}")
-        lines.append(f"- **Courant:** `{curr['sha']}` — {curr['subject']}")
-        lines.append(f"- **Δ% médian (capacity pub*):** {fmt_pct(cap_med)}")
+        lines.append(f"- **Previous:** `{prev['sha']}` — {prev['subject']}")
+        lines.append(f"- **Current:** `{curr['sha']}` — {curr['subject']}")
+        lines.append(f"- **Median delta% (capacity pub*):** {fmt_pct(cap_med)}")
         lines.append("")
-        lines.append("| Point | prev msg/s | curr msg/s | Δ% | prev | curr |")
+        lines.append("| Point | prev msg/s | curr msg/s | delta% | prev | curr |")
         lines.append("|---|---:|---:|---:|---|---|")
         for key, prev_m, curr_m, d, status_p, status_c in detail_rows:
             lines.append(
@@ -269,9 +269,9 @@ def build_report(summaries: List[dict]) -> str:
 
     lines.append("## Caveats")
     lines.append("")
-    lines.append("- Profil `smoke`: fenêtres courtes, 1 run/point, marqué non comparable pour verdicts fins.")
-    lines.append("- Même harness, même broker local, seed 42 ; charge machine non contrôlée finement.")
-    lines.append("- Les points `inconclusive` / `not_implemented:*` n'ont pas de taux fiable (affichés —).")
+    lines.append("- `smoke` profile: short windows, 1 run/point, marked non-comparable for fine verdicts.")
+    lines.append("- Same harness, same local broker, seed 42; host load is not tightly controlled.")
+    lines.append("- `inconclusive` / `not_implemented:*` points have no reliable rate (shown as —).")
     lines.append("")
     return "\n".join(lines)
 

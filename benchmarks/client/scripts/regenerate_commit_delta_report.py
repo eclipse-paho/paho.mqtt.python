@@ -78,17 +78,17 @@ def main() -> None:
         print(f"loaded {sha}: {len(data['points'])} points, valid={valid}")
 
     lines = [
-        "# Différentiels benchmark client — smoke core depuis plan 1",
+        "# Client benchmark deltas — core smoke since plan 1",
         "",
         f"- Timestamp UTC: `{TS}`",
-        "- Profil: `smoke` · suite: `core` · seed: `42`",
-        "- Harness: branche `benchmarks` (fixe) · SUT via `--source` worktrees",
-        "- Δ% = (commit / précédent) − 1 sur médiane `msgs/s` du point",
-        "- Smoke = bruit élevé ; signes seulement si écarts gros et stables",
+        "- Profile: `smoke` · suite: `core` · seed: `42`",
+        "- Harness: fixed `benchmarks` branch · SUT via `--source` worktrees",
+        "- Delta% = (commit / previous) - 1 on the point median `msgs/s`",
+        "- Smoke is noisy; treat only large stable gaps as signal",
         "",
-        "## Index des commits",
+        "## Commit index",
         "",
-        "| # | SHA | Sujet | Artefact |",
+        "| # | SHA | Subject | Artifact |",
         "|---:|---|---|---|",
     ]
     for i, (sha, subject) in enumerate(CHAIN):
@@ -135,9 +135,9 @@ def main() -> None:
 
     lines.extend(
         [
-            "## Résumé des pas (Δ% médian sur points capacity publish)",
+            "## Step summary (median delta% on capacity publish points)",
             "",
-            "| Pas | Prev → Curr | Δ% médian (capacity pub*) | Points valid curr |",
+            "| Step | Prev → Curr | Median delta% (capacity pub*) | Valid points curr |",
             "|---|---|---:|---:|",
         ]
     )
@@ -148,8 +148,8 @@ def main() -> None:
     lines.extend(
         [
             "",
-            "\\* Points dont la clé contient `cadence=capacity` et un scénario "
-            "`pub_*` / `remaining_length*` / `duplex_*`.",
+            "\\* Points whose key contains `cadence=capacity` and a "
+            "`pub_*` / `remaining_length*` / `duplex_*` scenario.",
             "",
         ]
     )
@@ -157,13 +157,13 @@ def main() -> None:
     for i, prev_sha, prev_subj, curr_sha, curr_subj, detail_rows, cap_med, valid_curr, npoints in steps:
         lines.extend(
             [
-                f"## Pas {i - 1}→{i}: `{prev_sha}` → `{curr_sha}`",
+                f"## Step {i - 1}→{i}: `{prev_sha}` → `{curr_sha}`",
                 "",
-                f"- **Précédent:** `{prev_sha}` — {prev_subj}",
-                f"- **Courant:** `{curr_sha}` — {curr_subj}",
-                f"- **Δ% médian (capacity pub*):** {fmt_pct(cap_med)}",
+                f"- **Previous:** `{prev_sha}` — {prev_subj}",
+                f"- **Current:** `{curr_sha}` — {curr_subj}",
+                f"- **Median delta% (capacity pub*):** {fmt_pct(cap_med)}",
                 "",
-                "| Point | prev msg/s | curr msg/s | Δ% | prev | curr |",
+                "| Point | prev msg/s | curr msg/s | delta% | prev | curr |",
                 "|---|---:|---:|---:|---|---|",
             ]
         )
@@ -177,9 +177,9 @@ def main() -> None:
         [
             "## Caveats",
             "",
-            "- Profil `smoke`: fenêtres courtes, 1 run/point, marqué non comparable pour verdicts fins.",
-            "- Même harness, même broker local, seed 42 ; charge machine non contrôlée finement.",
-            "- Les points `inconclusive` / `not_implemented:*` n'ont pas de taux fiable (affichés —).",
+            "- `smoke` profile: short windows, 1 run/point, marked non-comparable for fine verdicts.",
+            "- Same harness, same local broker, seed 42; host load is not tightly controlled.",
+            "- `inconclusive` / `not_implemented:*` points have no reliable rate (shown as —).",
             "",
         ]
     )
@@ -188,7 +188,7 @@ def main() -> None:
     report_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Wrote {report_path}")
     print()
-    print("| Pas | Prev → Curr | Δ% médian | valid |")
+    print("| Step | Prev → Curr | Median delta% | valid |")
     for i, prev_sha, prev_subj, curr_sha, curr_subj, detail_rows, cap_med, valid_curr, npoints in steps:
         print(f"| {i - 1}→{i} | `{prev_sha}` → `{curr_sha}` | {fmt_pct(cap_med)} | {valid_curr}/{npoints} |")
 

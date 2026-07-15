@@ -1,6 +1,5 @@
 import binascii
 import struct
-from typing import Tuple
 
 
 def dump_packet(prefix: str, data: bytes) -> None:
@@ -12,7 +11,7 @@ def dump_packet(prefix: str, data: bytes) -> None:
         print(prefix, " (not decoded): 0x", data, sep="")
 
 
-def remaining_length(packet: bytes) -> Tuple[bytes, int]:
+def remaining_length(packet: bytes) -> tuple[bytes, int]:
     l = min(5, len(packet))  # noqa: E741
     all_bytes = struct.unpack("!" + "B" * l, packet[:l])
     mult = 1

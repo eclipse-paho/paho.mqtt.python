@@ -1,18 +1,18 @@
-# Comparaison smoke core — courant vs origin/master
+# Core smoke comparison — current vs origin/master
 
-Même harness (branch `benchmarks` @ `42fc4cd`), même profil smoke, broker local identique.
+Same harness (`benchmarks` branch @ `42fc4cd`), same smoke profile, same local broker.
 
-| Version | Commit Paho | Artefact |
+| Version | Paho commit | Artifact |
 |---|---|---|
-| **Courant** (branch benchmarks + WIP `client.py`) | `42fc4cd` + WIP reconnect replay | `core-smoke-42fc4cd-wip-20260712T061127Z` |
+| **Current** (benchmarks branch + WIP `client.py`) | `42fc4cd` + WIP reconnect replay | `core-smoke-42fc4cd-wip-20260712T061127Z` |
 | **origin/master** | `7a3d161` | `core-smoke-origin-master-7a3d161-20260712T061127Z` |
 
-> Δ% = (courant / master) − 1. Smoke = bruit élevé ; signes seulement si écarts gros et stables.
-> Les points `not_implemented:*` sont refusés explicitement (pas de faux chiffres).
+> Delta% = (current / master) - 1. Smoke is noisy; treat only large stable gaps as signal.
+> `not_implemented:*` points are refused explicitly (no fabricated numbers).
 
-## Débits principaux
+## Main throughputs
 
-| Scénario / point | master msg/s | courant msg/s | Δ% | master | courant |
+| Scenario / point | master msg/s | current msg/s | Δ% | master | current |
 |---|---:|---:|---:|---|---|
 | application_rtt_qos1 · payload=telemetry256 · qos_publish=1 · cadence=loaded75 · inflight=20 · subscription=exact · topic_topology=single · load_fraction=0.25 | 252 | 251 | -0.4% | valid | valid |
 | application_rtt_qos1 · payload=telemetry256 · qos_publish=1 · cadence=loaded75 · inflight=20 · subscription=exact · topic_topology=single · load_fraction=0.5 | 504 | 499 | -1.0% | valid | valid |
@@ -58,6 +58,6 @@ Même harness (branch `benchmarks` @ `42fc4cd`), même profil smoke, broker loca
 
 ## Notes
 
-- Harness post-correctifs : `blob1m` non nul, `sub_callback_matching` compte les deliveries filtrées, integrity exacte, duplex réel.
-- Variantes Zipf refusées (`not_implemented:topic_topology:fleet4k_zipf`) des deux côtés.
-- WIP non commité côté courant : replay CONNACK `loop_write` unique (voir `client.py` dirty).
+- Post-fix harness: non-zero `blob1m`, filtered deliveries counted in `sub_callback_matching`, exact integrity, real duplex.
+- Zipf variants refused (`not_implemented:topic_topology:fleet4k_zipf`) on both sides.
+- Uncommitted WIP on current: single CONNACK replay `loop_write` (see dirty `client.py`).

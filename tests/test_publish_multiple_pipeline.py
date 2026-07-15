@@ -1,7 +1,6 @@
 import collections
 
 import pytest
-
 from paho import mqtt
 from paho.mqtt import client, publish
 
@@ -17,7 +16,7 @@ def _messages(count, mixed=False):
     for index in range(count):
         qos = index % 3 if mixed else 1
         result.append({
-            "topic": "audit/{:04d}".format(index),
+            "topic": f"audit/{index:04d}",
             "payload": b"x",
             "qos": qos,
         })

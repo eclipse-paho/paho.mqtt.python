@@ -16,9 +16,9 @@
 
 import struct
 from types import MappingProxyType
+from typing import ClassVar
 
 from .packettypes import PacketTypes
-
 
 _PACK_U16 = struct.Struct("!H")
 _PACK_U32 = struct.Struct("!L")
@@ -158,8 +158,10 @@ class Properties:
 
     """
 
-    types = ["Byte", "Two Byte Integer", "Four Byte Integer", "Variable Byte Integer",
-             "Binary Data", "UTF-8 Encoded String", "UTF-8 String Pair"]
+    types: ClassVar[list[str]] = [
+        "Byte", "Two Byte Integer", "Four Byte Integer", "Variable Byte Integer",
+        "Binary Data", "UTF-8 Encoded String", "UTF-8 String Pair",
+    ]
 
     names = MappingProxyType({
         "Payload Format Indicator": 1,
@@ -239,9 +241,9 @@ class Properties:
         42: (_TYPE_BYTE, (PacketTypes.CONNACK,)),
     })
 
-    _compressed_names_dict = {}
-    _names_from_ident_dict = {}
-    _compressed_names_from_ident_dict = {}
+    _compressed_names_dict = {}  # noqa: RUF012
+    _names_from_ident_dict = {}  # noqa: RUF012
+    _compressed_names_from_ident_dict = {}  # noqa: RUF012
     for _name, _identifier in names.items():
         _compressed_name = _name.replace(' ', '')
         _compressed_names_dict[_compressed_name] = _identifier
@@ -251,18 +253,15 @@ class Properties:
     _names_from_ident = MappingProxyType(_names_from_ident_dict)
     _compressed_names_from_ident = MappingProxyType(_compressed_names_from_ident_dict)
     _multiple_identifiers = frozenset((11, 38))
-    _multiple_names_set = set()
+    _multiple_names_set = set()  # noqa: RUF012
     for _name, _identifier in _compressed_names.items():
         if _identifier in _multiple_identifiers:
             _multiple_names_set.add(_name)
     _multiple_names = frozenset(_multiple_names_set)
-    _property_order_list = []
-    for _name in names.keys():
-        _property_order_list.append(_name.replace(' ', ''))
-    _property_order = tuple(_property_order_list)
+    _property_order = tuple(_name.replace(' ', '') for _name in names.keys())
     _private_vars = frozenset(("packetType", "types", "names", "properties", "_set_properties"))
     del _compressed_names_dict, _names_from_ident_dict, _compressed_names_from_ident_dict
-    del _multiple_names_set, _property_order_list, _name, _identifier, _compressed_name
+    del _multiple_names_set, _name, _identifier, _compressed_name
 
     def __init__(self, packetType):
         object.__setattr__(self, "packetType", packetType)

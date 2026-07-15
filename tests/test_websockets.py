@@ -73,7 +73,7 @@ def _unmask_client_frame(frame):
 @pytest.mark.parametrize("size", [0, 2, 16, 128, 1024, 65536])
 def test_create_frame_masks_payload(monkeypatch, size):
     wrapper = _wrapper_for_io(_PartialWebSocket())
-    payload = bytearray((index % 251 for index in range(size)))
+    payload = bytearray(index % 251 for index in range(size))
     original = bytes(payload)
     monkeypatch.setattr(client.os, "urandom", lambda count: b"\x01\x02\x03\x04")
 

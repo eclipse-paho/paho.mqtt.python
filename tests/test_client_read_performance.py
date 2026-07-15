@@ -1,9 +1,8 @@
 import struct
 import threading
 
-import pytest
-
 import paho.mqtt.client as client
+import pytest
 from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties

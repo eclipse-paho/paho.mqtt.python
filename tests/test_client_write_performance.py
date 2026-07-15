@@ -3,9 +3,8 @@ import sys
 import threading
 import time
 
-import pytest
-
 import paho.mqtt.client as client
+import pytest
 from paho.mqtt.enums import CallbackAPIVersion, _ConnectionState
 
 
@@ -215,14 +214,14 @@ def test_wait_for_publish_does_not_miss_concurrent_set_as_published():
         barrier = threading.Barrier(2)
         done = threading.Event()
 
-        def waiter():
+        def waiter(barrier=barrier, info=info, done=done):
             barrier.wait()
             info.wait_for_publish(timeout=1.0)
             if not info.is_published():
                 failures.append("waiter returned unpublished")
             done.set()
 
-        def publisher():
+        def publisher(barrier=barrier, info=info):
             barrier.wait()
             info._set_as_published()
 
@@ -395,7 +394,7 @@ def test_qos0_on_publish_ordering():
 
     mqttc.on_publish = on_publish
 
-    infos = [mqttc.publish("t/{}".format(i), b"x", qos=0) for i in range(5)]
+    infos = [mqttc.publish(f"t/{i}", b"x", qos=0) for i in range(5)]
     assert [info.mid for info in infos] == seen
     assert all(info.is_published() for info in infos)
 
@@ -718,8 +717,9 @@ def test_reconnect_reset_computes_clean_session_once(monkeypatch):
 def test_message_state_dicts_preserve_insertion_order_and_clean_reset():
     mqttc = client.Client(callback_api_version=CallbackAPIVersion.VERSION2)
 
-    assert type(mqttc._out_messages) is dict
-    assert type(mqttc._in_messages) is dict
+    # Exact type matters: OrderedDict would also pass isinstance(..., dict).
+    assert type(mqttc._out_messages) is dict  # noqa: E721
+    assert type(mqttc._in_messages) is dict  # noqa: E721
 
     for mid in (3, 1, 2):
         message = client.MQTTMessage(mid=mid, topic=b"devices/topic")
@@ -731,7 +731,7 @@ def test_message_state_dicts_preserve_insertion_order_and_clean_reset():
     assert list(mqttc._out_messages) == [3, 2, 1]
 
     mqttc._messages_reconnect_reset_in()
-    assert type(mqttc._in_messages) is dict
+    assert type(mqttc._in_messages) is dict  # noqa: E721
     assert mqttc._in_messages == {}
 
 
