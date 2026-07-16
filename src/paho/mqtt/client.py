@@ -574,7 +574,15 @@ class MQTTMessageInfo:
         """Returns True if the message associated with this object has been
         published, else returns False.
 
-        To wait for this to become true, look at `wait_for_publish`.
+        Returning False does not mean the publication failed; it means the
+        publication has not completed yet. To wait for this to become true,
+        look at `wait_for_publish`.
+
+        :raises ValueError: if the message was not queued due to the outgoing
+            queue being full.
+
+        :raises RuntimeError: if the message was not published for another
+            reason.
         """
         if self.rc == MQTTErrorCode.MQTT_ERR_QUEUE_SIZE:
             raise ValueError('Message is not queued due to ERR_QUEUE_SIZE')
