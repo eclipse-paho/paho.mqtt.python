@@ -29,7 +29,7 @@ def ssl_certs_path(tmp_path_factory):
     if ssl is None:
         pytest.skip("no ssl module")
     path=tmp_path_factory.mktemp("ssl_certs")
-    subprocess.run(str((ssl_path / "gen.sh").resolve()), shell=True, cwd=path, check=True) # noqa: S602
+    subprocess.run(str((ssl_path / "gen.sh").resolve()), cwd=path, check=True, shell=False) # noqa: S603
     yield path
 
 
