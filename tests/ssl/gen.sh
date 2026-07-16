@@ -49,7 +49,7 @@ openssl ca -batch -config $CONF_FILE -name CA_signing -out server.crt -infiles s
 
 # Expired server certificate, based on the above server key.
 openssl req -new -days 1 -key server.key -out server-expired.csr -config $CONF_FILE -subj "${SBASESUBJ}/CN=localhost/"
-echo -n > signingCA/index.txt
+> signingCA/index.txt
 echo 01 > signingCA/serial
 openssl ca -batch -config $CONF_FILE -name CA_signing -days 1 -startdate 120820000000Z -enddate 120821000000Z -out server-expired.crt -infiles server-expired.csr
 
