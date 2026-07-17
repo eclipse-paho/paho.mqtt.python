@@ -3162,6 +3162,9 @@ class Client:
                 self._in_packet['packet'] += data
             count -= 1
             if count == 0:
+                # self._last_bytes_received could be updated on every iteration
+                # (also when count > 0).  Not doing so avoids any
+                # performance overhead from acquiring the lock every iteration.
                 with self._msgtime_mutex:
                     self._last_bytes_received = time_func()
                 return MQTTErrorCode.MQTT_ERR_AGAIN
