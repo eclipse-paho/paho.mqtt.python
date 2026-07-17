@@ -32,16 +32,16 @@ def create_server_socket():
     return (sock, port)
 
 
-def create_server_socket_ssl(*, verify_mode=None, alpn_protocols=None):
+def create_server_socket_ssl(*, path = ssl_path, verify_mode=None, alpn_protocols=None):
     assert ssl, "SSL not available"
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_verify_locations(str(ssl_path / "all-ca.crt"))
+    context.load_verify_locations(str(path / "all-ca.crt"))
     context.load_cert_chain(
-        str(ssl_path / "server.crt"),
-        str(ssl_path / "server.key"),
+        str(path / "server.crt"),
+        str(path / "server.key"),
     )
     if verify_mode:
         context.verify_mode = verify_mode
