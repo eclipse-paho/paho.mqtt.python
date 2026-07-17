@@ -823,7 +823,7 @@ class Client:
             "pos": 0,
         }
         self._out_packet: collections.deque[_OutPacket] = collections.deque()
-        self._last_msg_in = time_func()
+        self._last_bytes_received = time_func()
         self._last_msg_out = time_func()
         self._reconnect_min_delay = 1
         self._reconnect_max_delay = 120
@@ -1590,7 +1590,7 @@ class Client:
         self._out_packet.clear()
 
         with self._msgtime_mutex:
-            self._last_msg_in = time_func()
+            self._last_bytes_received = time_func()
             self._last_msg_out = time_func()
 
         # Put messages in progress in a valid state.
@@ -3163,7 +3163,7 @@ class Client:
             count -= 1
             if count == 0:
                 with self._msgtime_mutex:
-                    self._last_msg_in = time_func()
+                    self._last_bytes_received = time_func()
                 return MQTTErrorCode.MQTT_ERR_AGAIN
 
         # All data for this packet is read.
@@ -3183,7 +3183,7 @@ class Client:
         }
 
         with self._msgtime_mutex:
-            self._last_msg_in = time_func()
+            self._last_bytes_received = time_func()
         return rc
 
     def _packet_write(self) -> MQTTErrorCode:
@@ -3295,10 +3295,10 @@ class Client:
 
         with self._msgtime_mutex:
             last_msg_out = self._last_msg_out
-            last_msg_in = self._last_msg_in
+            last_bytes_received = self._last_bytes_received
 
-        if self._sock is not None and (now - last_msg_out >= self._keepalive or now - last_msg_in >= self._keepalive):
-            if self._state == _ConnectionState.MQTT_CS_CONNECTED and (self._ping_t == 0 or now - last_msg_in < self.keepalive):
+        if self._sock is not None and (now - last_msg_out >= self._keepalive or now - last_bytes_received >= self._keepalive):
+            if self._state == _ConnectionState.MQTT_CS_CONNECTED and (self._ping_t == 0 or now - last_bytes_received < self.keepalive):
                 try:
                     self._send_pingreq()
                 except Exception:
@@ -3310,7 +3310,7 @@ class Client:
                 else:
                     with self._msgtime_mutex:
                         self._last_msg_out = now
-                        self._last_msg_in = now
+                        self._last_bytes_received = now
             else:
                 self._sock_close()
 
