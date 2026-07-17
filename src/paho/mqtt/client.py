@@ -3303,7 +3303,8 @@ class Client:
         if self._sock is not None and (now - last_msg_out >= self._keepalive or now - last_bytes_received >= self._keepalive):
             if self._state == _ConnectionState.MQTT_CS_CONNECTED and (self._ping_t == 0 or now - last_bytes_received < self.keepalive):
                 try:
-                    self._send_pingreq()
+                    if self._ping_t  == 0 or now - self._ping_t >= self._keepalive:
+                        self._send_pingreq()
                 except Exception:
                     self._sock_close()
                     self._do_on_disconnect(
