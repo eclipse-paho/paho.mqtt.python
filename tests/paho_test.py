@@ -403,6 +403,13 @@ def pack_remaining_length(remaining_length):
             return s
 
 
+def signal_client_ready():
+    ready_file = os.environ.get("PAHO_TEST_READY_FILE")
+    if ready_file is not None:
+        with open(ready_file, "w"):
+            pass
+
+
 def loop_until_keyboard_interrupt(mqttc):
     """
     Call loop() in a loop until KeyboardInterrupt is received.
@@ -413,6 +420,7 @@ def loop_until_keyboard_interrupt(mqttc):
     and stop the client gracefully.
     """
     try:
+        signal_client_ready()
         while True:
             mqttc.loop()
     except KeyboardInterrupt:
@@ -431,6 +439,7 @@ def wait_for_keyboard_interrupt():
     """
     yield  # If we get a KeyboardInterrupt during the block, it's too soon!
     try:
+        signal_client_ready()
         while True:
             time.sleep(0.1)
     except KeyboardInterrupt:

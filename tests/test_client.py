@@ -864,18 +864,18 @@ class TestCompatibility:
             disconnect_packet = paho_test.gen_disconnect()
             fake_broker.expect_packet("disconnect", disconnect_packet)
 
-            assert callback_called == [
-                "on_connect",
-                "on_subscribe",
-                "on_publish",
-                "on_message",
-                "on_unsubscribe",
-                "on_disconnect",
-            ]
-
         finally:
             mqttc.disconnect()
             mqttc.loop_stop()
+
+        assert callback_called == [
+            "on_connect",
+            "on_subscribe",
+            "on_publish",
+            "on_message",
+            "on_unsubscribe",
+            "on_disconnect",
+        ]
 
         packet_in = fake_broker.receive_packet(1)
         assert not packet_in  # Check connection is closed
@@ -1004,18 +1004,18 @@ class TestCompatibility:
             disconnect_packet = paho_test.gen_disconnect()
             fake_broker.expect_packet("disconnect", disconnect_packet)
 
-            assert callback_called == [
-                "on_connect",
-                "on_subscribe",
-                "on_publish",
-                "on_message",
-                "on_unsubscribe",
-                "on_disconnect",
-            ]
-
         finally:
             mqttc.disconnect()
             mqttc.loop_stop()
+
+        assert callback_called == [
+            "on_connect",
+            "on_subscribe",
+            "on_publish",
+            "on_message",
+            "on_unsubscribe",
+            "on_disconnect",
+        ]
 
         packet_in = fake_broker.receive_packet(1)
         assert not packet_in  # Check connection is closed

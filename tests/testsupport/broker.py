@@ -59,8 +59,10 @@ class FakeBroker:
         if self._conn is None:
             raise ValueError('Connection is not open')
 
-        packet_in = self._conn.recv(num_bytes)
-        return packet_in
+        try:
+            return self._conn.recv(num_bytes)
+        except ConnectionResetError:
+            return b""
 
     def send_packet(self, packet_out):
         if self._conn is None:
