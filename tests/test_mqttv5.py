@@ -1471,8 +1471,8 @@ class _TestBrokerRebootsMixin:
         lacallback.wait_disconnected()
         laclient.loop_stop()
 
-# class _TestBrokerRebootsQoS0(_TestBase, _TestBrokerRebootsMixin):
-#     qos=0
+class _TestBrokerRebootsQoS0(_TestBase, _TestBrokerRebootsMixin):
+    qos=0
 
 
 def setData():
