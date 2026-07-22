@@ -23,10 +23,11 @@ import threading
 import time
 import unittest
 import unittest.mock
+import warnings
 
 import paho.mqtt
 import paho.mqtt.client
-from paho.mqtt.enums import CallbackAPIVersion
+from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from paho.mqtt.subscribeoptions import SubscribeOptions
@@ -187,7 +188,19 @@ def cleanup(port):
     print("clean up finished")
 
 
-class Test(unittest.TestCase):
+class _TestBase(unittest.TestCase):
+
+    @staticmethod
+    def new_client(clientid):
+        callback = Callbacks()
+        client = paho.mqtt.client.Client(
+            CallbackAPIVersion.VERSION1,
+            clientid.encode("utf-8"),
+            protocol=paho.mqtt.client.MQTTv5,
+        )
+        callback.register(client)
+        client.loop_start()
+        return client, callback
 
     @classmethod
     def setUpClass(cls):
@@ -195,40 +208,17 @@ class Test(unittest.TestCase):
 
         sys.path.append("paho.mqtt.testing/interoperability/")
         try:
-            import mqtt.brokers
+            import mqtt.brokers  # noqa: F401  (populates sys.modules)
         except ImportError as ie:
             raise unittest.SkipTest("paho.mqtt.testing not present.") from ie
 
-        # Hack: we need to patch `signal.signal()` because `mqtt.brokers.run()`
-        #       calls it to set up a signal handler; however, that won't work
-        #       from a thread...
-        with unittest.mock.patch("signal.signal", unittest.mock.MagicMock()):
-            cls._test_broker = threading.Thread(
-                target=mqtt.brokers.run,
-                kwargs={
-                    "config": ["listener 0"],
-                },
-            )
-            cls._test_broker.daemon = True
-            cls._test_broker.start()
-            # Wait a bit for TCP server to bind to an address
-            for _ in range(20):
-                time.sleep(0.1)
-                if mqtt.brokers.listeners.TCPListeners.server is not None:
-                    port = mqtt.brokers.listeners.TCPListeners.server.socket.getsockname()[1]
-                    if port != 0:
-                        cls._test_broker_port = port
-                        break
-            else:
-                raise ValueError("can't find the test broker port")
+        cls._start_broker(port=0)
         setData()
         cleanup(cls._test_broker_port)
 
         callback = Callbacks()
         callback2 = Callbacks()
 
-        #aclient = mqtt_client.Client(b"\xEF\xBB\xBF" + "myclientid".encode("utf-8"))
-        #aclient = mqtt_client.Client("myclientid".encode("utf-8"))
         aclient = paho.mqtt.client.Client(CallbackAPIVersion.VERSION1, b"aclient", protocol=paho.mqtt.client.MQTTv5)
         callback.register(aclient)
 
@@ -236,11 +226,53 @@ class Test(unittest.TestCase):
         callback2.register(bclient)
 
     @classmethod
+    def _start_broker(cls, port):
+        """(Re)start mqtt.brokers.run in a daemon thread bound to `port`
+        (0 = OS picks one). Blocks until the listener is bound and sets
+        cls._test_broker / cls._test_broker_port."""
+        import socketserver
+
+        import mqtt.brokers
+        # Make sure the listening socket can be rebound immediately after
+        # server_close(), regardless of paho.mqtt.testing's own defaults.
+        socketserver.TCPServer.allow_reuse_address = True
+
+        with unittest.mock.patch("signal.signal", unittest.mock.MagicMock()):
+            cls._test_broker = threading.Thread(
+                target=mqtt.brokers.run,
+                kwargs={"config": [f"listener {port}"]},
+            )
+            cls._test_broker.daemon = True
+            cls._test_broker.start()
+
+            for _ in range(50):
+                time.sleep(0.1)
+                server = mqtt.brokers.listeners.TCPListeners.server
+                if server is not None:
+                    bound_port = server.socket.getsockname()[1]
+                    if bound_port != 0:
+                        cls._test_broker_port = bound_port
+                        return
+            raise ValueError("can't find the test broker port")
+
+    @classmethod
     def tearDownClass(cls):
         # Another hack to stop the test broker... we rely on fact that it use a sockserver.TCPServer
         import mqtt.brokers
         mqtt.brokers.listeners.TCPListeners.server.shutdown()
         cls._test_broker.join(5)
+
+    @classmethod
+    def _reboot_broker(cls):
+        import mqtt.brokers
+        server = mqtt.brokers.listeners.TCPListeners.server
+        server.shutdown()
+        server.server_close()
+        cls._test_broker.join(5)
+        cls._start_broker(port=cls._test_broker_port)
+
+
+class Test(_TestBase):
 
     def test_basic(self):
         import datetime
@@ -545,16 +577,6 @@ class Test(unittest.TestCase):
         aclient.loop_stop()
         self.assertEqual(len(msgs), 2)
 
-    def new_client(self, clientid):
-        callback = Callbacks()
-        client = paho.mqtt.client.Client(
-            CallbackAPIVersion.VERSION1,
-            clientid.encode("utf-8"),
-            protocol=paho.mqtt.client.MQTTv5,
-        )
-        callback.register(client)
-        client.loop_start()
-        return client, callback
 
     def test_session_expiry(self):
         # no session expiry property == never expire
@@ -1063,6 +1085,10 @@ class Test(unittest.TestCase):
             laclient.disconnect()
             lacallback.wait_disconnected()
             laclient.loop_stop()
+            warnings.warn(
+                f"Exiting test_client_topic_alias early. Broker does not support Topic alii. {clientTopicAliasMaximum=}",
+                stacklevel=2,
+            )
             return
 
         laclient.subscribe(topics[0], qos=2)
@@ -1400,6 +1426,99 @@ class Test(unittest.TestCase):
         lbclient.disconnect()
         lbcallback.wait_disconnected()
         lbclient.loop_stop()
+
+
+class _TestBrokerRebootsTopicAliiMixin:
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        clientid = f'client topic alias broker shutsdown QoS: {cls.qos}'
+
+        laclient, lacallback = cls.new_client(f"{clientid} a")
+        laclient.connect(host="localhost", port=cls._test_broker_port)
+        _connack = lacallback.wait_connected()
+        print("laclient Connected", flush=True)
+
+
+        publish_properties = Properties(PacketTypes.PUBLISH)
+        publish_properties.TopicAlias = 1
+
+
+        laclient.subscribe(topics[0], qos=2)
+        lacallback.wait_subscribed()
+
+        laclient.publish(topics[0], b"topic alias 1",
+                         cls.qos, properties=publish_properties)
+        lacallback.messages.get(timeout=DEFAULT_TIMEOUT)
+
+        for i in range(2,6):
+            laclient.publish("", f"topic alias msg {i}".encode("ascii"), cls.qos,
+                         properties=publish_properties)
+            lacallback.messages.get(timeout=DEFAULT_TIMEOUT)
+
+        # Simulate PUBACK being lost
+        laclient._tmp_do_on_publish = laclient._do_on_publish
+        with laclient._callback_mutex, laclient._in_callback_mutex, laclient._out_message_mutex:
+            laclient._do_on_publish = lambda mid, rc, props : MQTTErrorCode.MQTT_ERR_SUCCESS
+
+
+
+        msg_info = laclient.publish("", "topic alias msg 6".encode("ascii"), cls.qos,
+                        properties=publish_properties)
+
+        time.sleep(0.3)
+
+        if cls.qos >= 1:
+            # Assertion error will be ignored in setUp()
+            laclient._out_messages[msg_info.mid]
+
+        # Do not get last message...  ... in QoS >= 1, expect
+        # this to causes client to get stuck in a loop:
+        # i) reconnection
+        # ii) publish QoS >= 1 message with no PUBACK to unrecognised alias
+        # iii) Broker kicks client
+        print("Rebooting broker...")
+        cls._reboot_broker()
+
+        lacallback.wait_disconnected()
+        _connack = lacallback.wait_connected()
+
+        cls.laclient, cls.lacallback = laclient, lacallback
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.laclient.loop_stop()
+        super().tearDownClass()
+
+class TestBrokerRebootsTopicAliiQoS0(_TestBrokerRebootsTopicAliiMixin, _TestBase):
+    """ Simulates what happens when broker reboots on
+        a QoS 0 client, that has had the code to clear the message
+        queue on PUBACK deactivated.
+    """
+    qos=0
+    def test_qos0_client_reconnects_after_broker_reboots(self):
+        time.sleep(DEFAULT_TIMEOUT)
+        self.assertTrue(self.lacallback.disconnecteds.empty())
+
+class TestBrokerRebootsTopicAliiQoS1(_TestBrokerRebootsTopicAliiMixin, _TestBase):
+    """ Simulated what happens when broker reboots on
+        a QoS 1 client, that has had the code to clear the message
+        queue on PUBACK deactivated.
+
+        Note, on a similar class for QoS 2, the test setUpClass
+        hangs or enters an infinite loop, causing the whole test
+        session to time out.  So there is never
+        anything for the xfail to test.
+    """
+
+    qos=1
+    @unittest.expectedFailure
+    def test_qos1_client_reconnects_after_broker_reboots(self):
+        time.sleep(DEFAULT_TIMEOUT)
+        self.assertTrue(self.lacallback.disconnecteds.empty())
+
+
+
 
 
 def setData():
