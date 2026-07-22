@@ -190,10 +190,12 @@ def cleanup(port):
 
 class _TestBase(unittest.TestCase):
 
-    @staticmethod
-    def new_client(clientid):
-        callback = Callbacks()
-        client = paho.mqtt.client.Client(
+    ClientClass = paho.mqtt.client.Client
+    CallbacksClass = Callbacks
+    @classmethod
+    def new_client(cls, clientid):
+        callback = cls.CallbacksClass()
+        client = cls.ClientClass(
             CallbackAPIVersion.VERSION1,
             clientid.encode("utf-8"),
             protocol=paho.mqtt.client.MQTTv5,
@@ -1443,11 +1445,11 @@ class _TestBrokerRebootsTopicAliiMixin:
         publish_properties = Properties(PacketTypes.PUBLISH)
         publish_properties.TopicAlias = 1
 
-
-        laclient.subscribe(topics[0], qos=2)
+        topic = topics[0]
+        laclient.subscribe(topic, qos=2)
         lacallback.wait_subscribed()
 
-        laclient.publish(topics[0], b"topic alias 1",
+        laclient.publish(topic, b"topic alias 1",
                          cls.qos, properties=publish_properties)
         lacallback.messages.get(timeout=DEFAULT_TIMEOUT)
 
@@ -1512,8 +1514,34 @@ class TestBrokerRebootsTopicAliiQoS1(_TestBrokerRebootsTopicAliiMixin, _TestBase
     """
 
     qos=1
+    # xfail because we expect the new rebooted broker instance
+    # to kick the client when it attempts to republish
+    # an 'unacknowledged' message
+    # on an old unrecognised topic alias.
     @unittest.expectedFailure
     def test_qos1_client_reconnects_after_broker_reboots(self):
+        time.sleep(DEFAULT_TIMEOUT)
+        self.assertTrue(self.lacallback.disconnecteds.empty())
+
+
+class WorkAroundCallbacks(Callbacks):
+    def on_connect(self, client, userdata, flags, reasonCode, properties):
+        super().on_connect(client, userdata, flags, reasonCode, properties)
+        # Users can write custom code to handle _dropped_messages,
+        # e.g. save {alias: topic} somewhere and
+        # restore full topic names to the first message to
+        # each topic alias.
+        _dropped_messages = client.drop_out_messages()
+
+
+class TestDropOutMessagesWorkAround(_TestBrokerRebootsTopicAliiMixin, _TestBase):
+    """ Tests simple work around (clearing pending messages)
+        for the above QoS 1 / Topic alias  / broker reboot
+        reconnection loop issue.
+    """
+    CallbacksClass = WorkAroundCallbacks
+    qos=1
+    def test_qos1_drop_messages_client_reconnects_after_broker_reboots(self):
         time.sleep(DEFAULT_TIMEOUT)
         self.assertTrue(self.lacallback.disconnecteds.empty())
 

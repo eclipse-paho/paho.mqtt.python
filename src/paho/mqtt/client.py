@@ -4041,6 +4041,24 @@ class Client:
         else:
             return MQTTErrorCode.MQTT_ERR_PROTOCOL
 
+    def drop_out_messages(self) -> list[MQTTMessage]:
+        """ Drops all unacknowledged QoS >= 1 messages, and returns them.
+            For example, call this in on_connect to clear pending
+            messages with a topic alias before the Client
+            attempts to republish them on reconnection,
+            possibly to a rebooted new Broker instance
+            that may not know the old alias.  This would then
+            kick the client, causing an infinite reconnection loop.
+
+            The message ids of the returned MQTTMessage instances
+            are stored in their .mid attributes.
+        """
+        retval = []
+        with self._out_message_mutex:
+            retval = list(self._out_messages.values())
+            self._out_messages.clear()
+        return retval
+
     def _handle_disconnect(self) -> None:
         packet_type = DISCONNECT >> 4
         reasonCode = properties = None
