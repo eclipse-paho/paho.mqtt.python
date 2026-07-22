@@ -2,6 +2,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -45,7 +46,29 @@ def alpn_ssl_server_socket(monkeypatch, ssl_certs_path):
     yield from _yield_server(monkeypatch, create_server_socket_ssl(path=ssl_certs_path, alpn_protocols=["paho-test-protocol"]))
 
 
-def stop_process(proc: subprocess.Popen) -> None:
+def terminate_process(proc: subprocess.Popen) -> None:
+    proc.terminate()
+    try:
+        # At least on Unix, terminate() isn't an unconditional kill, process
+        # could ignore/handle it.
+        proc.wait(1)
+    except subprocess.TimeoutExpired:
+        # So use kill which is unstoppable on Unix
+        proc.kill()
+        proc.wait(1)  # If here we timeout, there is nothing more to do.
+
+
+def stop_process(proc: subprocess.Popen, ready_file) -> None:
+    deadline = time.monotonic() + 5
+    while proc.poll() is None and not ready_file.exists():
+        if time.monotonic() >= deadline:
+            terminate_process(proc)
+            raise RuntimeError("Client did not become ready to stop")
+        time.sleep(0.01)
+
+    if proc.poll() is not None:
+        return
+
     if sys.platform == "win32":
         proc.send_signal(signal.CTRL_C_EVENT)
     else:
@@ -53,25 +76,19 @@ def stop_process(proc: subprocess.Popen) -> None:
     try:
         proc.wait(5)
     except subprocess.TimeoutExpired:
-        proc.terminate()
-        try:
-            # At least on Unix, terminate() isn't an unconditional kill, process
-            # could ignore/handle it.
-            proc.wait(1)
-        except subprocess.TimeoutExpired:
-            # So use kill which is unstoppable on Unix
-            proc.kill()
-            proc.wait(1)  # If here we timeout, there is nothing more to do.
+        terminate_process(proc)
 
 
 @pytest.fixture()
-def start_client(request: pytest.FixtureRequest, ssl_certs_path):
+def start_client(request: pytest.FixtureRequest, ssl_certs_path, tmp_path):
     def starter(name: str, expected_returncode: int = 0) -> None:
         client_path = clients_path / name
         if not client_path.exists():
             raise FileNotFoundError(client_path)
+        ready_file = tmp_path / f"{name}.ready"
         env = dict(
             os.environ,
+            PAHO_TEST_READY_FILE=str(ready_file),
             PAHO_SSL_PATH=str(ssl_certs_path),
             PYTHONPATH=f"{tests_path}{os.pathsep}{os.environ.get('PYTHONPATH', '')}",
         )
@@ -82,7 +99,7 @@ def start_client(request: pytest.FixtureRequest, ssl_certs_path):
         ], env=env)
 
         def fin():
-            stop_process(proc)
+            stop_process(proc, ready_file)
             # If return code is None, process had not stopped when a method was last called on proc.
             # https://docs.python.org/library/subprocess.html#subprocess.Popen.returncode
             if proc.returncode != expected_returncode:
