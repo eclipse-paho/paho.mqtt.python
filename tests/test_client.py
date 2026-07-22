@@ -1019,3 +1019,111 @@ class TestCompatibility:
 
         packet_in = fake_broker.receive_packet(1)
         assert not packet_in  # Check connection is closed
+
+
+class TestLargeDownload:
+    def test_no_disconnect_during_large_download(self, fake_broker: FakeBroker) -> None:
+        mqttc = client.Client(
+            CallbackAPIVersion.VERSION2,
+            "test_no_disconnect_during_large_download",
+            transport=fake_broker.transport,
+        )
+        mqttc.enable_logger()
+
+        payload_data = b"very Very Big big payload" * 5
+        is_connected = threading.Event()
+        is_subscribed = threading.Event()
+        publish_received = threading.Event()
+
+        def on_connect(mqttc, obj, flags, rc, properties):
+            assert rc == 0
+            is_connected.set()
+
+        def on_subscribe(cl, userdata, mid, reason_code_list, properties):
+            is_subscribed.set()
+
+        def on_message(cl, userdata, message):
+            assert isinstance(cl, client.Client)
+            assert isinstance(message, client.MQTTMessage)
+            assert message.payload == payload_data
+            publish_received.set()
+
+        mqttc.on_connect = on_connect
+        mqttc.on_subscribe = on_subscribe
+        mqttc.on_message = on_message
+
+        mqttc.enable_logger()
+        mqttc.connect("localhost", fake_broker.port, keepalive=1)
+        mqttc.loop_start()
+
+        try:
+            fake_broker.start()
+
+            connect_packet = paho_test.gen_connect(
+                "test_no_disconnect_during_large_download", keepalive=1)
+            fake_broker.expect_packet("connect", connect_packet)
+
+            connack_packet = paho_test.gen_connack(rc=0)
+            count = fake_broker.send_packet(connack_packet)
+            assert count == len(connack_packet)
+
+            is_connected.wait(timeout=5)
+            rc, mid = mqttc.subscribe("topic")
+            assert rc == MQTTErrorCode.MQTT_ERR_SUCCESS
+            assert mid is not None
+
+            subscribe_packet = paho_test.gen_subscribe(mid, "topic", 0)
+            fake_broker.expect_packet("subscribe", subscribe_packet)
+
+            suback_packet = paho_test.gen_suback(2, 0)
+            count = fake_broker.send_packet(suback_packet)
+            assert count == len(suback_packet)
+
+            is_subscribed.wait(timeout=5)
+
+            publish_packet = paho_test.gen_publish("topic", 0, payload_data, mid=3)
+            # This should be enough for ~6s of test which should take 3s
+            assert len(publish_packet) >= 64
+
+            # First send 5 bytes, at least enough for the packet type
+            idx = 5
+            count = fake_broker.send_packet(publish_packet[:5])
+            assert count == 5
+
+            t0 = time.time()
+            # Wait 1.5, enough to get our first pingreq
+            while time.time() < t0 + 1.5:
+                time.sleep(0.1)
+                count = fake_broker.send_packet(publish_packet[idx:idx+1])
+                assert count == 1
+                import logging
+                logging.debug("send 1 bytes")
+                idx += 1
+                assert idx < len(publish_packet)
+
+            # 1.5 seconds elapsed, client MUST have sent pingreq
+            ping_req_packet = paho_test.gen_pingreq()
+            fake_broker.expect_packet("pingreq", ping_req_packet)
+
+            t1 = time.time()
+
+            # Wait additional 1.5s, enough to get another first pingreq
+            while time.time() < t1 + 1.5:
+                time.sleep(0.1)
+                count = fake_broker.send_packet(publish_packet[idx:idx+1])
+                assert count == 1
+                idx += 1
+                assert idx < len(publish_packet)
+
+            # Another 1.5 seconds elapsed, client MUST have sent another pingreq
+            ping_req_packet = paho_test.gen_pingreq()
+            fake_broker.expect_packet("2nd pingreq", ping_req_packet)
+
+            # Send full packet
+            count = fake_broker.send_packet(publish_packet[idx:])
+            assert count == len(publish_packet[idx:])
+
+            publish_received.wait(timeout=5)
+        finally:
+            mqttc.loop_stop()
+            fake_broker.finish()
