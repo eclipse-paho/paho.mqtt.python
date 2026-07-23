@@ -4,15 +4,45 @@ import unicodedata
 
 import paho.mqtt.client as client
 import pytest
-from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion
+from paho.mqtt.enums import (
+    CallbackAPIVersion,
+    ConnackCode,
+    LogLevel,
+    MessageState,
+    MessageType,
+    MQTTErrorCode,
+    MQTTProtocolVersion,
+    PahoClientMode,
+)
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
-from paho.mqtt.reasoncodes import ReasonCode
+from paho.mqtt.reasoncodes import ReasonCode, ReasonCodes
+from paho.mqtt.subscribeoptions import SubscribeOptions
 
 import tests.paho_test as paho_test
 
 # Import test fixture
 from tests.testsupport.broker import FakeBroker, fake_broker  # noqa: F401
+
+
+def test_documented_public_reexports() -> None:
+    expected_public_api = {
+        "CallbackAPIVersion": CallbackAPIVersion,
+        "ConnackCode": ConnackCode,
+        "LogLevel": LogLevel,
+        "MessageState": MessageState,
+        "MessageType": MessageType,
+        "MQTTErrorCode": MQTTErrorCode,
+        "MQTTProtocolVersion": MQTTProtocolVersion,
+        "PahoClientMode": PahoClientMode,
+        "Properties": Properties,
+        "ReasonCode": ReasonCode,
+        "ReasonCodes": ReasonCodes,
+        "SubscribeOptions": SubscribeOptions,
+    }
+
+    for name, expected in expected_public_api.items():
+        assert getattr(client, name) is expected
 
 
 @pytest.mark.parametrize("proto_ver,callback_version", [
