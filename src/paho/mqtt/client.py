@@ -3745,15 +3745,17 @@ class Client:
     def _messages_reconnect_reset_out(self) -> None:
         with self._out_message_mutex:
             self._inflight_messages = 0
+            to_be_inflight = 0
             for m in self._out_messages.values():
                 m.timestamp = 0
-                if self._max_inflight_messages == 0 or self._inflight_messages < self._max_inflight_messages:
+                if self._max_inflight_messages == 0 or to_be_inflight < self._max_inflight_messages:
                     if m.qos == 0:
                         m.state = mqtt_ms_publish
                     elif m.qos == 1:
                         if m.state == mqtt_ms_wait_for_puback:
                             m.dup = True
                         m.state = mqtt_ms_publish
+                        to_be_inflight += 1
                     elif m.qos == 2:
                         if self._check_clean_session():
                             if m.state != mqtt_ms_publish:
@@ -3766,6 +3768,7 @@ class Client:
                                 if m.state == mqtt_ms_wait_for_pubrec:
                                     m.dup = True
                                 m.state = mqtt_ms_publish
+                        to_be_inflight += 1
                 else:
                     m.state = mqtt_ms_queued
 
