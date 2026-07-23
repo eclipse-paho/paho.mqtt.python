@@ -4642,7 +4642,7 @@ class Client:
             sock = self._ssl_wrap_socket(sock)
 
         if self._transport == "websockets":
-            sock.settimeout(self._keepalive)
+            sock.settimeout(self._connect_timeout)
             return _WebsocketWrapper(
                 socket=sock,
                 host=self._host,
@@ -4697,7 +4697,7 @@ class Client:
             if getattr(self._ssl_context, 'check_hostname', False):  # type: ignore
                 verify_host = False
 
-        ssl_sock.settimeout(self._keepalive)
+        ssl_sock.settimeout(self._connect_timeout)
         ssl_sock.do_handshake()
 
         if verify_host:
