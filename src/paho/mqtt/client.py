@@ -1731,7 +1731,11 @@ class Client:
             if rc or self._sock is None:
                 return rc
 
-        return self.loop_misc()
+        rc = self.loop_misc()
+        if rc == MQTT_ERR_SUCCESS:
+            #Make the main loop to update infight packets
+            return self._update_inflight()
+        return rc
 
     def publish(
         self,
