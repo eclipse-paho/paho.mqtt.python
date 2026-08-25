@@ -119,6 +119,12 @@ try:
 except ImportError:
     HAVE_DNS = False
 
+try:
+    from websockets.exceptions import ConnectionClosed
+    from websockets.sync.client import connect as websockets_connect
+except ImportError:
+    websockets_connect = None  # type: ignore[assignment]
+    ConnectionClosed = None   # type: ignore[misc,assignment]
 
 if platform.system() == 'Windows':
     EAGAIN = errno.WSAEWOULDBLOCK  # type: ignore[attr-defined]
@@ -1184,7 +1190,8 @@ class Client:
             a callable, then the default websocket headers are passed into this
             function and the result is used as the new headers.
         """
-        self._websocket_path = path
+        if path is not None:
+            self._websocket_path = path
 
         if headers is not None:
             if isinstance(headers, dict) or callable(headers):
@@ -1722,7 +1729,7 @@ class Client:
             # Clear sockpairR - only ever a single byte written.
             try:
                 # Read many bytes at once - this allows up to 10000 calls to
-                # publish() inbetween calls to loop().
+                # publish() in between calls to loop().
                 self._sockpairR.recv(10000)
             except BlockingIOError:
                 pass
@@ -1873,7 +1880,7 @@ class Client:
         Requires brokers that support bridge mode.
 
         Under bridge mode, the broker will identify the client as a bridge and
-        not send it's own messages back to it. Hence a subsciption of # is
+        not send it's own messages back to it. Hence a subscription of # is
         possible without message loops. This feature also correctly propagates
         the retain flag on the messages.
 
@@ -2469,7 +2476,7 @@ class Client:
 
     @property
     def on_connect(self) -> CallbackOnConnect | None:
-        """The callback called when the broker reponds to our connection request.
+        """The callback called when the broker responds to our connection request.
 
         Expected signature for callback API version 2::
 
@@ -2809,7 +2816,7 @@ class Client:
 
     @property
     def on_socket_open(self) -> CallbackOnSocket | None:
-        """The callback called just after the socket was opend.
+        """The callback called just after the socket was opened.
 
         This should be used to register the socket to an external event loop for reading.
 
@@ -4639,6 +4646,20 @@ class Client:
         return None
 
     def _create_socket(self) -> SocketLike:
+
+        if self._transport == "websockets" and websockets_connect is not None:
+            # Let websockets create its own socker, and
+            # connect it, so that any http redirects are followed.
+            return _ClientConnection_websockets_Wrapper(
+                socket=None,
+                host=self._host,
+                port=self._port,
+                is_ssl=self._ssl,
+                ssl_context=self._ssl_context,
+                path=self._websocket_path,
+                extra_headers=self._websocket_extra_headers,
+            )
+
         if self._transport == "unix":
             sock = self._create_unix_socket_connection()
         else:
@@ -4649,11 +4670,13 @@ class Client:
 
         if self._transport == "websockets":
             sock.settimeout(self._connect_timeout)
+
             return _WebsocketWrapper(
                 socket=sock,
                 host=self._host,
                 port=self._port,
                 is_ssl=self._ssl,
+                ssl_context=self._ssl_context,
                 path=self._websocket_path,
                 extra_headers=self._websocket_extra_headers,
             )
@@ -4714,7 +4737,96 @@ class Client:
 
         return ssl_sock
 
-class _WebsocketWrapper:
+class _WebsocketWrapperBase:
+
+    def __init__(
+        self,
+        socket: socket.socket | ssl.SSLSocket,
+        is_ssl: bool,
+        ssl_context: ssl.SSLContext | None = None
+    ):
+        self._socket = socket
+        self._ssl = ssl_context is not None or is_ssl
+        self._ssl_context = ssl_context
+
+    def close(self) -> None:
+        self._socket.close()
+
+    def fileno(self) -> int:
+        return self._socket.fileno()
+
+    def pending(self) -> int:
+        # Fix for bug #131: a SSL socket may still have data available
+        # for reading without select() being aware of it.
+        if self._ssl:
+            return self._socket.pending()  # type: ignore[union-attr]
+        else:
+            # normal socket rely only on select()
+            return 0
+
+    def setblocking(self, flag: bool) -> None:
+        self._socket.setblocking(flag)
+
+    def send(self, data: bytes | bytearray) -> int:
+        raise NotImplementedError
+
+    def recv(self, length: int) -> bytes:
+        raise NotImplementedError
+
+
+class _ClientConnection_websockets_Wrapper(_WebsocketWrapperBase):
+    def __init__(
+        self,
+        socket: socket.socket | ssl.SSLSocket | None,
+        host: str,
+        port: int,
+        is_ssl: bool,
+        path: str,
+        extra_headers: WebSocketHeaders | None,
+        ssl_context: ssl.SSLContext | None = None,
+    ):
+        # path = None is included in the tests, even though this
+        # is not supported according to the type annotation
+        uri = f"ws://{host}:{port}{path or ''}"
+
+        # To satisfy our Mock testing broker, "chat" is added to the subprotocols
+        # from https://www.iana.org/assignments/websocket/websocket.xml#subprotocol-name
+        subprotocols = ["mqtt", "chat"]
+
+        # https://websockets.readthedocs.io/en/stable/reference/sync/client.html#websockets.sync.client.connect
+        self.client_conn = websockets_connect( #type: ignore[return-value]
+            uri=uri, # overridden by sock below
+            sock=socket,
+            ssl = ssl_context,
+            additional_headers = extra_headers, # type: ignore[arg-type]
+            subprotocols = subprotocols, # type: ignore[arg-type,list-item]
+        )
+        super().__init__(socket or self.client_conn.socket, is_ssl, ssl_context)
+
+    def send(self, data: bytes | bytearray) -> int:
+        # This try / except (and the one below in recv) is needed
+        # because the fake websockets broker in the tests
+        # does not send a close frame
+        try:
+            self.client_conn.send(data)
+            return len(data)
+        except ConnectionClosed as exc:
+            raise ConnectionError(str(exc)) from exc
+
+    def recv(self, length: int) -> bytes:
+        try:
+            return cast(bytes, self.client_conn.recv(length))
+        except ConnectionClosed as exc:
+            raise ConnectionError(str(exc)) from exc
+
+    def setblocking(self, flag: bool) -> None:
+        return None
+
+    def close(self) -> None:
+        self.client_conn.close()
+        super().close()
+
+class _WebsocketWrapper(_WebsocketWrapperBase):
     OPCODE_CONTINUATION = 0x0
     OPCODE_TEXT = 0x1
     OPCODE_BINARY = 0x2
@@ -4730,13 +4842,13 @@ class _WebsocketWrapper:
         is_ssl: bool,
         path: str,
         extra_headers: WebSocketHeaders | None,
+        ssl_context: ssl.SSLContext | None = None,
     ):
+        super().__init__(socket, is_ssl, ssl_context)
         self.connected = False
 
-        self._ssl = is_ssl
         self._host = host
         self._port = port
-        self._socket = socket
         self._path = path
 
         self._sendbuffer = bytearray()
@@ -4904,7 +5016,7 @@ class _WebsocketWrapper:
         self._readbuffer_head += length
         return self._readbuffer[self._readbuffer_head - length:self._readbuffer_head]
 
-    def _recv_impl(self, length: int) -> bytes:
+    def recv(self, length: int) -> bytes:
 
         # try to decode websocket payload part from data
         try:
@@ -4987,7 +5099,7 @@ class _WebsocketWrapper:
             self.connected = False
             return b''
 
-    def _send_impl(self, data: bytes | bytearray) -> int:
+    def send(self, data: bytes | bytearray) -> int:
 
         # if previous frame was sent successfully
         if len(self._sendbuffer) == 0:
@@ -5009,32 +5121,9 @@ class _WebsocketWrapper:
             # couldn't send whole data, request the same data again with 0 as sent length
             return 0
 
-    def recv(self, length: int) -> bytes:
-        return self._recv_impl(length)
-
     def read(self, length: int) -> bytes:
-        return self._recv_impl(length)
-
-    def send(self, data: bytes | bytearray) -> int:
-        return self._send_impl(data)
+        return self.recv(length)
 
     def write(self, data: bytes) -> int:
-        return self._send_impl(data)
+        return self.send(data)
 
-    def close(self) -> None:
-        self._socket.close()
-
-    def fileno(self) -> int:
-        return self._socket.fileno()
-
-    def pending(self) -> int:
-        # Fix for bug #131: a SSL socket may still have data available
-        # for reading without select() being aware of it.
-        if self._ssl:
-            return self._socket.pending()  # type: ignore[union-attr]
-        else:
-            # normal socket rely only on select()
-            return 0
-
-    def setblocking(self, flag: bool) -> None:
-        self._socket.setblocking(flag)

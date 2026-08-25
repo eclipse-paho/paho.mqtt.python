@@ -2,9 +2,13 @@ import socket
 from unittest.mock import Mock
 
 import pytest
-from paho.mqtt.client import WebsocketConnectionError, _WebsocketWrapper
+from paho.mqtt.client import WebsocketConnectionError, _WebsocketWrapper, websockets_connect
 
 
+@pytest.mark.skipif(
+    websockets_connect is not None,
+    reason="Only class under test: _WebsocketWrapper is not used when websockets is installed."
+)
 class TestHeaders:
     """ Make sure headers are used correctly """
 

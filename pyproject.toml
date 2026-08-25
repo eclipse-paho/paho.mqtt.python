@@ -40,6 +40,9 @@ dependencies = []
 proxy = [
     "PySocks",
 ]
+websockets = [
+    "websockets",
+]
 
 [project.urls]
 Homepage = "http://eclipse.org/paho"

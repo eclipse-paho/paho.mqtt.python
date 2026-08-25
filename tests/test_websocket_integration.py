@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 import paho.mqtt.client as client
 import pytest
-from paho.mqtt.client import WebsocketConnectionError
+from paho.mqtt.client import WebsocketConnectionError, websockets_connect
 
 from tests.testsupport.broker import fake_websocket_broker  # noqa: F401
 
@@ -38,7 +38,10 @@ def get_websocket_response(response_headers):
 
     return response
 
-
+@pytest.mark.skipif(
+    websockets_connect is not None,
+    reason="Expects WebsocketConnectionError to be raised, which websockets doesn't"
+)
 @pytest.mark.parametrize("proto_ver,proto_name", [
     (client.MQTTv31, "MQIsdp"),
     (client.MQTTv311, "MQTT"),
@@ -65,6 +68,10 @@ class TestInvalidWebsocketResponse:
         assert str(exc.value) == "WebSocket handshake error"
 
 
+@pytest.mark.skipif(
+    websockets_connect is not None,
+    reason="Expects WebsocketConnectionError to be raised, which websockets doesn't"
+)
 @pytest.mark.parametrize("proto_ver,proto_name", [
     (client.MQTTv31, "MQIsdp"),
     (client.MQTTv311, "MQTT"),
