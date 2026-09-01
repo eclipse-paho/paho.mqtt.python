@@ -59,10 +59,21 @@ class MQTTMatcher:
         that match the :topic"""
         lst = topic.split('/')
         normal = not topic.startswith('$')
+
+        def _match_hash(node, i):
+            if '#' in node._children and (normal or i > 0):
+                content = node._children['#']._content
+                if content is not None:
+                    yield content
+
         def rec(node, i=0):
             if i == len(lst):
                 if node._content is not None:
                     yield node._content
+                # MQTT spec 4.7.1.2: '#' includes the parent level, so a
+                # filter like "sport/#" must also match the topic "sport".
+                for content in _match_hash(node, i):
+                    yield content
             else:
                 part = lst[i]
                 if part in node._children:
@@ -71,8 +82,6 @@ class MQTTMatcher:
                 if '+' in node._children and (normal or i > 0):
                     for content in rec(node._children['+'], i + 1):
                         yield content
-            if '#' in node._children and (normal or i > 0):
-                content = node._children['#']._content
-                if content is not None:
+                for content in _match_hash(node, i):
                     yield content
         return rec(self._root)
