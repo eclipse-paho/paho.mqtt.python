@@ -1822,7 +1822,13 @@ class Client:
                     return message.info
 
                 self._out_messages[message.mid] = message
-                if self._max_inflight_messages == 0 or self._inflight_messages < self._max_inflight_messages:
+                # A live TCP socket is not a CONNACK. Sending now would put this
+                # PUBLISH on _out_packet ahead of earlier mids still sitting in
+                # _out_messages from before the socket existed (#910).
+                if (
+                    self._state == _ConnectionState.MQTT_CS_CONNECTED
+                    and (self._max_inflight_messages == 0 or self._inflight_messages < self._max_inflight_messages)
+                ):
                     self._inflight_messages += 1
                     if qos == 1:
                         message.state = mqtt_ms_wait_for_puback
@@ -1840,8 +1846,12 @@ class Client:
                     message.info.rc = rc
                     return message.info
                 else:
-                    message.state = mqtt_ms_queued
-                    message.info.rc = MQTTErrorCode.MQTT_ERR_SUCCESS
+                    if self._state != _ConnectionState.MQTT_CS_CONNECTED:
+                        message.state = mqtt_ms_publish
+                        message.info.rc = MQTTErrorCode.MQTT_ERR_NO_CONN
+                    else:
+                        message.state = mqtt_ms_queued
+                        message.info.rc = MQTTErrorCode.MQTT_ERR_SUCCESS
                     return message.info
 
     def username_pw_set(

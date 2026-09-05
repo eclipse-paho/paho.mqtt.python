@@ -470,6 +470,50 @@ class TestPublish:
         packet_in = fake_broker.receive_packet(1)
         assert not packet_in  # Check connection is closed
 
+    @pytest.mark.parametrize("qos", [1, 2])
+    def test_publish_order_connect_async_before_connack(
+        self, qos: int, fake_broker: FakeBroker
+    ) -> None:
+        """QoS 1/2 publishes between CONNECT and CONNACK must keep queue order (#910)."""
+        client_id = "test-qos-order-connect-async"
+        topic = "test/replication"
+        mqttc = client.Client(
+            CallbackAPIVersion.VERSION2,
+            client_id,
+            reconnect_on_failure=False,
+            transport=fake_broker.transport,
+        )
+
+        queued_before_connect = 3
+        published_during_handshake = 2
+        total = queued_before_connect + published_during_handshake
+
+        for seq in range(queued_before_connect):
+            mqttc.publish(topic, f"Message {seq}", qos=qos)
+
+        # TCP connect + CONNECT, but no CONNACK yet (same window as connect_async + loop).
+        mqttc.connect_async("localhost", fake_broker.port)
+        mqttc.reconnect()
+        fake_broker.start()
+        fake_broker.expect_packet("connect", paho_test.gen_connect(client_id, keepalive=60))
+        assert not mqttc.is_connected()
+
+        for seq in range(queued_before_connect, total):
+            mqttc.publish(topic, f"Message {seq}", qos=qos)
+
+        count = fake_broker.send_packet(paho_test.gen_connack(rc=0))
+        assert count
+        assert mqttc.loop(timeout=1) == MQTTErrorCode.MQTT_ERR_SUCCESS
+        assert mqttc.is_connected()
+
+        for seq in range(total):
+            fake_broker.expect_packet(
+                "publish",
+                paho_test.gen_publish(
+                    topic, qos=qos, mid=seq + 1, payload=f"Message {seq}",
+                ),
+            )
+
     @pytest.mark.parametrize("user_payload,sent_payload", [
         ("string", b"string"),
         (b"byte", b"byte"),
