@@ -1070,7 +1070,7 @@ class TestPubrecError:
     """
     Regression tests for eclipse-paho/paho.mqtt.python#895.
 
-    A MQTT 5 QoS 2 publish rejected by a PUBREC carrying a failure reason
+    An MQTT 5 QoS 2 publish rejected by a PUBREC carrying a failure reason
     code (>= 0x80, spec section 3.5.2.1) must stop the QoS 2 handshake (no
     PUBREL, [MQTT-4.3.3-4]), complete the message (treated as acknowledged,
     [MQTT-4.4.0-2]) and report the PUBREC reason code and properties through
