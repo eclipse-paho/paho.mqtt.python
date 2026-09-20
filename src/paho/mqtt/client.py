@@ -4314,6 +4314,10 @@ class Client:
             return MQTTErrorCode.MQTT_ERR_PROTOCOL
 
         mid, = struct.unpack("!H", self._in_packet['packet'][:2])
+        # MQTT 5: no reason code field means Success (spec 3.5.2.1); None
+        # is kept for MQTT 3.1.1, which has no reason code.
+        reasonCode: ReasonCode | None = None
+        properties: Properties | None = None
         if self._protocol == MQTTv5:
             if self._in_packet['remaining_length'] > 2:
                 reasonCode = ReasonCode(PUBREC >> 4)
@@ -4327,6 +4331,21 @@ class Client:
         with self._out_message_mutex:
             if mid in self._out_messages:
                 msg = self._out_messages[mid]
+
+                # MQTT 5: a PUBREC with a failure reason code (>= 0x80) ends
+                # the QoS 2 exchange - no PUBREL ([MQTT-4.3.3-4]), the publish
+                # is treated as acknowledged and must not be retransmitted
+                # ([MQTT-4.4.0-2]). Complete the message with the PUBREC
+                # reason code, like the PUBACK failure path.
+                if (
+                    self._protocol == MQTTv5
+                    and reasonCode is not None
+                    and reasonCode.is_failure
+                ):
+                    if properties is None:
+                        properties = Properties(PUBREC >> 4)
+                    return self._do_on_publish(mid, reasonCode, properties)
+
                 msg.state = mqtt_ms_wait_for_pubcomp
                 msg.timestamp = time_func()
                 return self._send_pubrel(mid)
