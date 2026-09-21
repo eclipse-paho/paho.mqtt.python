@@ -4314,6 +4314,9 @@ class Client:
             return MQTTErrorCode.MQTT_ERR_PROTOCOL
 
         mid, = struct.unpack("!H", self._in_packet['packet'][:2])
+        # MQTT 5: no reason code field means implicit Success (spec 3.5.2.1).
+        reasonCode: ReasonCode | None = None
+        properties: Properties | None = None
         if self._protocol == MQTTv5:
             if self._in_packet['remaining_length'] > 2:
                 reasonCode = ReasonCode(PUBREC >> 4)
@@ -4327,6 +4330,16 @@ class Client:
         with self._out_message_mutex:
             if mid in self._out_messages:
                 msg = self._out_messages[mid]
+
+                if (
+                    self._protocol == MQTTv5
+                    and reasonCode is not None
+                    and reasonCode.is_failure
+                ):
+                    if properties is None:
+                        properties = Properties(PUBREC >> 4)
+                    return self._do_on_publish(mid, reasonCode, properties)
+
                 msg.state = mqtt_ms_wait_for_pubcomp
                 msg.timestamp = time_func()
                 return self._send_pubrel(mid)

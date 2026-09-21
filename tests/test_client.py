@@ -1,6 +1,8 @@
+import socket
 import threading
 import time
 import unicodedata
+from typing import ClassVar
 
 import paho.mqtt.client as client
 import pytest
@@ -1062,6 +1064,565 @@ class TestCompatibility:
 
         packet_in = fake_broker.receive_packet(1)
         assert not packet_in  # Check connection is closed
+
+
+class TestPubrecError:
+    """Regression tests for eclipse-paho/paho.mqtt.python#895.
+
+    An MQTT 5 QoS 2 publish rejected by a failed PUBREC (>= 0x80, spec section
+    3.5.2.1) stops the QoS 2 handshake without PUBREL ([MQTT-4.3.3-4],
+    [MQTT-4.4.0-2]) and reports the PUBREC reason code and properties through
+    on_publish, like the QoS 1 PUBACK failure path.
+    """
+
+    # PUBREC failure reason codes from MQTT 5 spec section 3.5.2.1, Table 3-5.
+    FAILURE_REASON_CODES: ClassVar[list[int]] = [
+        0x80,  # Unspecified error
+        0x83,  # Implementation specific error
+        0x87,  # Not authorized
+        0x90,  # Topic name invalid
+        0x91,  # Packet identifier in use
+        0x97,  # Quota exceeded
+        0x99,  # Payload format invalid
+    ]
+
+    EXPECTED_NAMES: ClassVar[dict[int, str]] = {
+        0x80: "Unspecified error",
+        0x83: "Implementation specific error",
+        0x87: "Not authorized",
+        0x90: "Topic name invalid",
+        0x91: "Packet identifier in use",
+        0x97: "Quota exceeded",
+        0x99: "Payload format invalid",
+    }
+
+    @staticmethod
+    def _start_connected_v5_client(fake_broker, callback_version, callbacks,
+                                   userdata, configure=None):
+        """Connect an MQTT v5 client to the fake broker."""
+        mqttc = client.Client(
+            callback_version,
+            "client-id",
+            userdata=userdata,
+            protocol=MQTTProtocolVersion.MQTTv5,
+            transport=fake_broker.transport,
+        )
+        if configure is not None:
+            configure(mqttc)
+        mqttc.on_connect = callbacks["on_connect"]
+        mqttc.on_publish = callbacks["on_publish"]
+        mqttc.connect_async("localhost", fake_broker.port)
+        mqttc.loop_start()
+
+        try:
+            fake_broker.start()
+
+            packet_in = fake_broker.receive_packet(1000)
+            assert packet_in  # Check connection was not closed
+            connack_packet = paho_test.gen_connack(rc=0, proto_ver=5)
+            count = fake_broker.send_packet(connack_packet)
+            assert count == len(connack_packet)
+            return mqttc
+        except BaseException:
+            mqttc.loop_stop()
+            raise
+
+    @staticmethod
+    def _expect_publish(fake_broker, mid, qos=2, topic="topic", payload="payload"):
+        fake_broker.expect_packet(
+            "publish",
+            paho_test.gen_publish(topic, qos, payload, mid=mid, proto_ver=5))
+
+    @staticmethod
+    def _finish_with_disconnect(fake_broker, mqttc):
+        mqttc.disconnect()
+        fake_broker.expect_packet("disconnect", paho_test.gen_disconnect())
+        mqttc.loop_stop()
+
+    @staticmethod
+    def _expect_no_packet(fake_broker, timeout=0.5):
+        """Assert the broker side stays silent (e.g. no PUBREL sent)."""
+        previous_timeout = fake_broker._conn.gettimeout()
+        fake_broker._conn.settimeout(timeout)
+        try:
+            with pytest.raises(socket.timeout):
+                fake_broker.receive_packet(1)
+        finally:
+            fake_broker._conn.settimeout(previous_timeout)
+
+    @pytest.mark.parametrize("reason_code_value", FAILURE_REASON_CODES)
+    def test_v2_qos2_pubrec_failure_code(self, fake_broker, reason_code_value):
+        """A failed PUBREC itself completes the publish: no PUBREL
+        ([MQTT-4.3.3-4]), one on_publish with the PUBREC reason code."""
+        callback_called = []
+        publish_completed = threading.Event()
+        info_holder = {}
+
+        def on_connect(cl, userdata, flags, reason_code, properties):
+            assert reason_code == 0
+            userdata.append("on_connect")
+            info_holder["info"] = cl.publish("topic", "payload", 2)
+
+        def on_publish(cl, userdata, mid, reason_code, properties):
+            userdata.append(
+                ("on_publish", mid, reason_code.value, reason_code.getName()))
+            if mid == 1:
+                # failed-PUBREC path: empty PUBREC-typed Properties (the
+                # later QoS 0 publish delivers PUBACK-typed ones).
+                assert isinstance(properties, Properties)
+                assert properties.isEmpty()
+                assert properties.packetType == PacketTypes.PUBREC
+            publish_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION2,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called)
+        try:
+            self._expect_publish(fake_broker, mid=1)
+
+            pubrec_packet = paho_test.gen_pubrec(
+                mid=1, proto_ver=5, reason_code=reason_code_value)
+            count = fake_broker.send_packet(pubrec_packet)
+            assert count == len(pubrec_packet)
+
+            assert publish_completed.wait(5)
+            self._expect_no_packet(fake_broker)
+
+            info = info_holder["info"]
+            info.wait_for_publish(2)
+            assert info.is_published()
+
+            assert mqttc._out_messages == {}
+            assert mqttc._inflight_messages == 0
+
+            mqttc.publish("topic", "payload", 0)
+            self._expect_publish(fake_broker, mid=2, qos=0)
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called == [
+            "on_connect",
+            ("on_publish", 1, reason_code_value,
+             self.EXPECTED_NAMES[reason_code_value]),
+            ("on_publish", 2, 0, "Success"),
+        ]
+
+    def test_v2_qos2_pubrec_failure_duplicate(self, fake_broker):
+        """A duplicate failed PUBREC for the same mid is ignored."""
+        callback_called = []
+        publish_completed = threading.Event()
+
+        def on_connect(cl, userdata, flags, reason_code, properties):
+            userdata.append("on_connect")
+            cl.publish("topic", "payload", 2)
+
+        def on_publish(cl, userdata, mid, reason_code, properties):
+            userdata.append(("on_publish", mid, reason_code.value))
+            publish_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION2,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called)
+        try:
+            self._expect_publish(fake_broker, mid=1)
+
+            pubrec_packet = paho_test.gen_pubrec(
+                mid=1, proto_ver=5, reason_code=0x87)
+            count = fake_broker.send_packet(pubrec_packet)
+            assert count == len(pubrec_packet)
+            assert publish_completed.wait(5)
+
+            count = fake_broker.send_packet(pubrec_packet)
+            assert count == len(pubrec_packet)
+            self._expect_no_packet(fake_broker)
+
+            mqttc.publish("topic", "payload", 0)
+            self._expect_publish(fake_broker, mid=2, qos=0)
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called == [
+            "on_connect",
+            ("on_publish", 1, 0x87),
+            ("on_publish", 2, 0),
+        ]
+
+    def test_v2_qos2_pubrec_failure_unknown_mid(self, fake_broker):
+        """A failed PUBREC for an unknown mid is ignored."""
+        callback_called = []
+        publish_completed = threading.Event()
+
+        def on_connect(cl, userdata, flags, reason_code, properties):
+            userdata.append("on_connect")
+            cl.publish("topic", "payload", 2)
+
+        def on_publish(cl, userdata, mid, reason_code, properties):
+            userdata.append(("on_publish", mid, reason_code.value))
+            publish_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION2,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called)
+        try:
+            self._expect_publish(fake_broker, mid=1)
+
+            unknown_pubrec = paho_test.gen_pubrec(
+                mid=999, proto_ver=5, reason_code=0x87)
+            count = fake_broker.send_packet(unknown_pubrec)
+            assert count == len(unknown_pubrec)
+            self._expect_no_packet(fake_broker)
+
+            count = fake_broker.send_packet(
+                paho_test.gen_pubrec(mid=1, proto_ver=5, reason_code=0x87))
+            assert count > 0
+            assert publish_completed.wait(5)
+            self._expect_no_packet(fake_broker)
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called == [
+            "on_connect",
+            ("on_publish", 1, 0x87),
+        ]
+
+    def test_v2_qos2_pubrec_failure_late_stale_mid(self, fake_broker):
+        """A late failed PUBREC for a released old packet identifier is
+        ignored and does not complete a later message using a different
+        identifier. Paho assigns strictly increasing packet identifiers, so
+        the stale PUBREC is constructible deterministically; the test does
+        not force packet-identifier reuse."""
+        callback_called = []
+        m1_completed = threading.Event()
+        m2_completed = threading.Event()
+        m2_info_holder = {}
+
+        def on_connect(cl, userdata, flags, reason_code, properties):
+            userdata.append("on_connect")
+            cl.publish("topic", "payload", 2)
+
+        def on_publish(cl, userdata, mid, reason_code, properties):
+            userdata.append(("on_publish", mid, reason_code.value))
+            if mid == 1:
+                m1_completed.set()
+            else:
+                m2_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION2,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called)
+        try:
+            self._expect_publish(fake_broker, mid=1)
+            count = fake_broker.send_packet(
+                paho_test.gen_pubrec(mid=1, proto_ver=5, reason_code=0x87))
+            assert count > 0
+            assert m1_completed.wait(5)
+
+            m2_info = mqttc.publish("topic", "payload", 2)
+            m2_info_holder["info"] = m2_info
+            self._expect_publish(fake_broker, mid=m2_info.mid)
+
+            count = fake_broker.send_packet(
+                paho_test.gen_pubrec(mid=1, proto_ver=5, reason_code=0x87))
+            assert count > 0
+            self._expect_no_packet(fake_broker)
+
+            count = fake_broker.send_packet(
+                paho_test.gen_pubrec(mid=m2_info.mid, proto_ver=5))
+            assert count > 0
+            fake_broker.expect_packet(
+                "pubrel", paho_test.gen_pubrel(mid=m2_info.mid))
+            count = fake_broker.send_packet(
+                paho_test.gen_pubcomp(mid=m2_info.mid, proto_ver=5))
+            assert count > 0
+            assert m2_completed.wait(5)
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called == [
+            "on_connect",
+            ("on_publish", 1, 0x87),
+            ("on_publish", 2, 0),
+        ]
+
+    @pytest.mark.parametrize("explicit_reason_code", [None, 0x00])
+    def test_v2_qos2_pubrec_success(self, fake_broker, explicit_reason_code):
+        """A PUBREC without a failure reason code keeps the existing flow:
+        PUBREL, PUBCOMP, then one success on_publish."""
+        callback_called = []
+        publish_completed = threading.Event()
+        info_holder = {}
+
+        def on_connect(cl, userdata, flags, reason_code, properties):
+            userdata.append("on_connect")
+            info_holder["info"] = cl.publish("topic", "payload", 2)
+
+        def on_publish(cl, userdata, mid, reason_code, properties):
+            userdata.append(("on_publish", mid, reason_code.value))
+            publish_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION2,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called)
+        try:
+            self._expect_publish(fake_broker, mid=1)
+
+            if explicit_reason_code is None:
+                # implicit Success: no reason code field (Remaining Length 2)
+                pubrec_packet = paho_test.gen_pubrec(mid=1, proto_ver=5)
+                assert pubrec_packet == b"\x50\x02\x00\x01"
+            else:
+                pubrec_packet = paho_test.gen_pubrec(
+                    mid=1, proto_ver=5, reason_code=explicit_reason_code)
+            count = fake_broker.send_packet(pubrec_packet)
+            assert count == len(pubrec_packet)
+
+            pubrel_packet = paho_test.gen_pubrel(mid=1)
+            fake_broker.expect_packet("pubrel", pubrel_packet)
+            count = fake_broker.send_packet(
+                paho_test.gen_pubcomp(mid=1, proto_ver=5))
+            assert count == len(paho_test.gen_pubcomp(mid=1, proto_ver=5))
+            assert publish_completed.wait(5)
+
+            info = info_holder["info"]
+            info.wait_for_publish(2)
+            assert info.is_published()
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called == [
+            "on_connect",
+            ("on_publish", 1, 0x00),
+        ]
+
+    def test_v2_qos2_pubrec_failure_with_properties(self, fake_broker):
+        """PUBREC properties reach on_publish unchanged, PUBREC-typed."""
+        callback_called = []
+        publish_completed = threading.Event()
+
+        properties_bytes = (
+            mqtt5_props.gen_string_prop(
+                mqtt5_props.PROP_REASON_STRING, "denied by ACL")
+            + mqtt5_props.gen_string_pair_prop(
+                mqtt5_props.PROP_USER_PROPERTY, "k1", "v1"))
+
+        def on_connect(cl, userdata, flags, reason_code, properties):
+            userdata.append("on_connect")
+            cl.publish("topic", "payload", 2)
+
+        def on_publish(cl, userdata, mid, reason_code, properties):
+            userdata.append(
+                ("on_publish", mid, reason_code.value, reason_code.getName(),
+                 properties))
+            publish_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION2,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called)
+        try:
+            self._expect_publish(fake_broker, mid=1)
+
+            pubrec_packet = paho_test.gen_pubrec(
+                mid=1, proto_ver=5, reason_code=0x87,
+                properties=properties_bytes)
+            count = fake_broker.send_packet(pubrec_packet)
+            assert count == len(pubrec_packet)
+            assert publish_completed.wait(5)
+            self._expect_no_packet(fake_broker)
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called[0] == "on_connect"
+        assert callback_called[1][:4] == ("on_publish", 1, 0x87, "Not authorized")
+        properties = callback_called[1][4]
+        assert isinstance(properties, Properties)
+        assert properties.packetType == PacketTypes.PUBREC
+        assert properties.ReasonString == "denied by ACL"
+        assert properties.UserProperty == [("k1", "v1")]
+        assert "Reason String" in properties.names
+        assert "User Property" in properties.names
+
+    def test_v1_qos2_pubrec_failure(self, fake_broker):
+        """Callback API v1 has no reason code parameter: on_publish fires
+        once with the mid and no PUBREL is sent."""
+        callback_called = []
+        publish_completed = threading.Event()
+
+        def on_connect(cl, userdata, flags, rc, properties):
+            assert rc == 0
+            userdata.append("on_connect")
+            cl.publish("topic", "payload", 2)
+
+        def on_publish(cl, userdata, mid):
+            userdata.append(("on_publish", mid))
+            publish_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION1,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called)
+        try:
+            self._expect_publish(fake_broker, mid=1)
+
+            count = fake_broker.send_packet(
+                paho_test.gen_pubrec(mid=1, proto_ver=5, reason_code=0x87))
+            assert count > 0
+            assert publish_completed.wait(5)
+            self._expect_no_packet(fake_broker)
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called == [
+            "on_connect",
+            ("on_publish", 1),
+        ]
+
+    def test_v2_qos1_puback_failure_reference(self, fake_broker):
+        """QoS 1 reference semantics: a PUBACK failure reason code reaches
+        on_publish - the behaviour QoS 2 PUBREC failures now match."""
+        callback_called = []
+        publish_completed = threading.Event()
+        info_holder = {}
+
+        def on_connect(cl, userdata, flags, reason_code, properties):
+            userdata.append("on_connect")
+            info_holder["info"] = cl.publish("topic", "payload", 1)
+
+        def on_publish(cl, userdata, mid, reason_code, properties):
+            userdata.append(("on_publish", mid, reason_code.value))
+            publish_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION2,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called)
+        try:
+            self._expect_publish(fake_broker, mid=1, qos=1)
+
+            count = fake_broker.send_packet(
+                paho_test.gen_puback(mid=1, proto_ver=5, reason_code=0x87))
+            assert count > 0
+            assert publish_completed.wait(5)
+
+            info = info_holder["info"]
+            info.wait_for_publish(2)
+            assert info.is_published()
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called == [
+            "on_connect",
+            ("on_publish", 1, 0x87),
+        ]
+
+    def test_v2_qos2_failure_releases_inflight_slot(self, fake_broker):
+        """With max_inflight_messages=1 the failed first message releases the
+        inflight slot and the queued second message starts."""
+        callback_called = []
+        m1_completed = threading.Event()
+        m2_completed = threading.Event()
+        info_holder = {}
+        both_published = threading.Event()
+
+        def on_connect(cl, userdata, flags, reason_code, properties):
+            userdata.append("on_connect")
+            info_holder["m1"] = cl.publish("topic", "payload", 2)
+            info_holder["m2"] = cl.publish("topic", "payload", 2)
+            both_published.set()
+
+        def on_publish(cl, userdata, mid, reason_code, properties):
+            userdata.append(("on_publish", mid, reason_code.value))
+            if mid == info_holder["m1"].mid:
+                m1_completed.set()
+            else:
+                m2_completed.set()
+
+        mqttc = self._start_connected_v5_client(
+            fake_broker, CallbackAPIVersion.VERSION2,
+            {"on_connect": on_connect, "on_publish": on_publish},
+            callback_called,
+            configure=lambda c: c.max_inflight_messages_set(1))
+        try:
+            assert both_published.wait(5)
+            m1_info = info_holder["m1"]
+            m2_info = info_holder["m2"]
+            assert m1_info.mid == 1
+            assert m2_info.mid == 2
+
+            self._expect_publish(fake_broker, mid=m1_info.mid)
+
+            count = fake_broker.send_packet(
+                paho_test.gen_pubrec(mid=m1_info.mid, proto_ver=5,
+                                     reason_code=0x87))
+            assert count > 0
+            assert m1_completed.wait(5)
+
+            self._expect_publish(fake_broker, mid=m2_info.mid)
+
+            count = fake_broker.send_packet(
+                paho_test.gen_pubrec(mid=m2_info.mid, proto_ver=5))
+            assert count > 0
+            fake_broker.expect_packet(
+                "pubrel", paho_test.gen_pubrel(mid=m2_info.mid))
+            count = fake_broker.send_packet(
+                paho_test.gen_pubcomp(mid=m2_info.mid, proto_ver=5))
+            assert count > 0
+            assert m2_completed.wait(5)
+
+            m1_info = info_holder["m1"]
+            m1_info.wait_for_publish(2)
+            m2_info.wait_for_publish(2)
+            assert m1_info.is_published()
+            assert m2_info.is_published()
+
+            self._finish_with_disconnect(fake_broker, mqttc)
+        finally:
+            mqttc.loop_stop()
+
+        assert mqttc._out_messages == {}
+        assert mqttc._inflight_messages == 0
+        assert callback_called == [
+            "on_connect",
+            ("on_publish", 1, 0x87),
+            ("on_publish", 2, 0),
+        ]
 
 
 class TestLargeDownload:
