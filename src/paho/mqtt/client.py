@@ -4074,10 +4074,10 @@ class Client:
     def _handle_disconnect(self) -> None:
         packet_type = DISCONNECT >> 4
         reasonCode = properties = None
-        if self._in_packet['remaining_length'] > 2:
+        if self._in_packet['remaining_length'] > 0:
             reasonCode = ReasonCode(packet_type)
             reasonCode.unpack(self._in_packet['packet'])
-            if self._in_packet['remaining_length'] > 3:
+            if self._in_packet['remaining_length'] > 1:
                 properties = Properties(packet_type)
                 _props, _props_len = properties.unpack(
                     self._in_packet['packet'][1:])
