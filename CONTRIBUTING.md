@@ -48,3 +48,33 @@ This project uses Github issues to track ongoing development and issues.
 Be sure to search for existing bugs before you create another one. Remember that contributions are always welcome!
 
 - https://github.com/eclipse/paho.mqtt.python/issues
+
+## Commiter resources:
+
+### Making a release
+
+The process to make a release is the following:
+* Using a virtual env with the following tool installed: `pip install build sphinx twine`
+* In that same virtual env, install paho itself (required for docs): `pip install -e .`
+* Update the Changelog with the release version and date. Ensure it's up-to-date with latest fixes & PRs merged.
+* Make sure test pass, check that Github actions are green.
+* Check that documentation build (`cd docs; make clean html`)
+* Bump the version number in ``paho/mqtt/__init__.py``, commit the change.
+* Make a dry-run of build:
+   * Build release: ``python -m build .``
+   * Check with twine for common errors: ``python -m twine check dist/*``
+   * Try uploading it to testpypi: ``python3 -m twine upload --repository testpypi dist/*``
+* Do a GPG signed tag (assuming your GPG is correctly configured, it's ``git tag -s -m "Version 1.2.3" v1.2.3``)
+* Push the commit and it's tag to Github
+* Make sure your git is clean, especially the ``dist/`` folder.
+* Build a release: ``python -m build .``
+* You can also get the latest build from Github action. It should be identical to your local build:
+  https://github.com/eclipse/paho.mqtt.python/actions/workflows/build.yml?query=branch%3Amaster
+* Then upload the dist file, you can follow instruction on https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives
+  It should mostly be ``python -m twine upload dist/*``
+* Create a release on Github, copy-pasting the release note from Changelog.
+* Build and publish the documentation
+   * To build the documentation, run `make clean html` in `docs` folder
+   * Copy `_build/html/` to https://github.com/eclipse/paho-website/tree/master/files/paho.mqtt.python/html
+* Announce the release on the Mailing list.
+* To allow installing from a git clone, update the version in ``paho/mqtt/__init__.py`` to next number WITH .dev0 (example ``1.2.3.dev0``)
