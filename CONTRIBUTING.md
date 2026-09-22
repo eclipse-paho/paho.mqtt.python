@@ -49,7 +49,7 @@ Be sure to search for existing bugs before you create another one. Remember that
 
 - https://github.com/eclipse/paho.mqtt.python/issues
 
-## Commiter resources:
+## Committer resources:
 
 ### Making a release
 
