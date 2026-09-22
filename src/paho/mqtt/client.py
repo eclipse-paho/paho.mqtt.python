@@ -855,6 +855,7 @@ class Client:
         self._port = 1883
         self._bind_address = ""
         self._bind_port = 0
+        self._custom_create_socket: Callable[[], SocketLike] | None = None
         self._proxy: Any = {}
         self._in_callback_mutex = threading.Lock()
         self._callback_mutex = threading.RLock()
@@ -1104,6 +1105,16 @@ class Client:
     @logger.setter
     def logger(self, value: logging.Logger | None) -> None:
         self._logger = value
+
+    @property
+    def create_socket(self) -> Callable[[], SocketLike]:
+        if self._custom_create_socket is None:
+            return self._create_socket
+        return self._custom_create_socket
+
+    @create_socket.setter
+    def create_socket(self, val: Callable[[], SocketLike]) -> None:
+        self._custom_create_socket = val
 
     def _sock_recv(self, bufsize: int) -> bytes:
         if self._sock is None:
@@ -1610,7 +1621,7 @@ class Client:
                 if not self.suppress_exceptions:
                     raise
 
-        self._sock = self._create_socket()
+        self._sock = self.create_socket()
 
         self._sock.setblocking(False)  # type: ignore[attr-defined]
         self._registered_write = False
