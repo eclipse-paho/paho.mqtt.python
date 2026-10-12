@@ -221,6 +221,51 @@ class Test_connect_v5:
     Tests on connect/disconnect behaviour of the client with MQTTv5
     """
 
+    @pytest.mark.parametrize("callback_version", list(CallbackAPIVersion))
+    @pytest.mark.parametrize("payload,reason,reason_string", [
+        (b"", None, None),
+        (b"\x00", 0, None),
+        (b"\x87", 135, None),
+        (b"\x87\x00", 135, None),
+        (b"\x87\x06\x1f\x00\x03bye", 135, "bye"),
+    ])
+    def test_broker_disconnect_reason(self, fake_broker, callback_version,
+                                     payload, reason, reason_string):
+        mqttc = client.Client(
+            callback_version, "broker-disconnect-reason",
+            protocol=MQTTProtocolVersion.MQTTv5,
+            transport=fake_broker.transport,
+        )
+        received = []
+        mqttc.on_disconnect = lambda *args: received.append(args)
+
+        try:
+            mqttc.connect("localhost", fake_broker.port)
+            fake_broker.start()
+            assert fake_broker.receive_packet(1000)
+            fake_broker.send_packet(paho_test.gen_connack(rc=0, proto_ver=5))
+            mqttc.loop(timeout=1)
+            assert mqttc.is_connected()
+
+            # Exercise omitted reason/properties and both short MQTT 5 encodings.
+            fake_broker.send_packet(b"\xe0" + bytes([len(payload)]) + payload)
+            mqttc.loop(timeout=1)
+
+            assert len(received) == 1
+            args = received[0]
+            if callback_version == CallbackAPIVersion.VERSION2:
+                assert args[2].is_disconnect_packet_from_server
+                assert isinstance(args[-1], Properties)
+                reason = 0 if reason is None else reason
+            elif len(payload) >= 2:
+                assert isinstance(args[-1], Properties)
+            else:
+                assert args[-1] is None
+            assert args[-2] == reason
+            assert getattr(args[-1], "ReasonString", None) == reason_string
+        finally:
+            mqttc.disconnect()
+
     def test_01_broker_no_support(self, fake_broker):
         mqttc = client.Client(
             CallbackAPIVersion.VERSION2, "01-broker-no-support",
