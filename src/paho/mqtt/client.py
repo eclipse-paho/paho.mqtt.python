@@ -1283,13 +1283,9 @@ class Client:
 
         # Create SSLContext object
         if tls_version is None:
-            tls_version = ssl.PROTOCOL_TLSv1_2
-            # If the python version supports it, use highest TLS version automatically
-            if hasattr(ssl, "PROTOCOL_TLS_CLIENT"):
-                # This also enables CERT_REQUIRED and check_hostname by default.
-                tls_version = ssl.PROTOCOL_TLS_CLIENT
-            elif hasattr(ssl, "PROTOCOL_TLS"):
-                tls_version = ssl.PROTOCOL_TLS
+            # Use highest TLS version automatically.
+            # This also enables CERT_REQUIRED and check_hostname by default.
+            tls_version = ssl.PROTOCOL_TLS_CLIENT
         context = ssl.SSLContext(tls_version)
 
         # Configure context
