@@ -1215,3 +1215,41 @@ class TestLargeDownload:
         finally:
             mqttc.loop_stop()
             fake_broker.finish()
+
+
+
+def test_loop_read_honours_max_packets():
+    """loop_read(n) must process up to n queued PUBLISH packets (issue #962)."""
+    import select
+    import socket
+    import threading
+
+    server = socket.create_server(("127.0.0.1", 0))
+    port = server.getsockname()[1]
+    ready = threading.Event()
+
+    def fake_broker():
+        conn, _ = server.accept()
+        conn.recv(1024)  # CONNECT
+        conn.sendall(paho_test.gen_connack(rc=0))
+        ready.set()
+        payloads = [b"m%d" % i for i in range(5)]
+        for payload in payloads:
+            conn.sendall(paho_test.gen_publish("t", qos=0, payload=payload))
+        # Keep connection open briefly for the client to drain
+        time.sleep(1.0)
+        conn.close()
+        server.close()
+
+    threading.Thread(target=fake_broker, daemon=True).start()
+
+    received = []
+    mqttc = client.Client(CallbackAPIVersion.VERSION2, "loop-read-max-packets")
+    mqttc.on_message = lambda c, u, msg: received.append(msg.payload)
+    mqttc.connect("127.0.0.1", port)
+    select.select([mqttc.socket()], [], [], 2)
+    mqttc.loop_read()  # CONNACK
+    ready.wait(timeout=2)
+    time.sleep(0.05)  # five PUBLISH packets in the socket buffer
+    mqttc.loop_read(10)
+    assert received == [b"m0", b"m1", b"m2", b"m3", b"m4"], received

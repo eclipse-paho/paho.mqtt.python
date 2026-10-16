@@ -2115,13 +2115,17 @@ class Client:
         Use `socket()` to obtain the client socket to call select() or equivalent
         on.
 
+        ``max_packets`` is an upper bound on how many packets to try to read in
+        this call (at least one, and at least as many as currently in-flight
+        QoS > 0 messages). The default of ``1`` matches the historical
+        behaviour for QoS 0 traffic.
+
         Do not use if you are using `loop_start()` or `loop_forever()`."""
         if self._sock is None:
             return MQTTErrorCode.MQTT_ERR_NO_CONN
 
-        max_packets = len(self._out_messages) + len(self._in_messages)
-        if max_packets < 1:
-            max_packets = 1
+        pending = len(self._out_messages) + len(self._in_messages)
+        max_packets = max(max_packets, pending, 1)
 
         for _ in range(0, max_packets):
             if self._sock is None:
