@@ -71,11 +71,11 @@ class FakeBroker:
         count = self._conn.send(packet_out)
         return count
 
-    def expect_packet(self, name, packet):
+    def expect_packet(self, name, packet, is_mqtt5: bool = False):
         if self._conn is None:
             raise ValueError('Connection is not open')
 
-        paho_test.expect_packet(self._conn, name, packet)
+        paho_test.expect_packet(self._conn, name, packet, is_mqtt5=is_mqtt5)
 
 
 @pytest.fixture(params=["tcp"] + (["unix"] if hasattr(socket, 'AF_UNIX') else []))
