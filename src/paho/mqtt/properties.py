@@ -79,8 +79,18 @@ def writeBytes(buffer):
     return writeInt16(len(buffer)) + buffer
 
 
-def readBytes(buffer):
-    length = readInt16(buffer)
+def readBytes(buffer, maxlen):
+    # Every property is framed by the Property Length field, so a value
+    # that reaches past the bytes left in that region cannot be parsed and
+    # is a malformed packet (MQTT v5.0 sections 2.2.2.1, 2.2.2.2 and 1.4).
+    # This is the same bound readUTF() already enforces for strings.
+    if maxlen >= 2:
+        length = readInt16(buffer)
+    else:
+        raise MalformedPacket("Not enough data to read binary data length")
+    maxlen -= 2
+    if length > maxlen:
+        raise MalformedPacket("Length delimited binary data too long")
     return buffer[2:2+length], length+2
 
 
@@ -378,7 +388,7 @@ class Properties:
         elif type == self.types.index("Variable Byte Integer"):
             value, valuelen = VariableByteIntegers.decode(buffer)
         elif type == self.types.index("Binary Data"):
-            value, valuelen = readBytes(buffer)
+            value, valuelen = readBytes(buffer, propslen)
         elif type == self.types.index("UTF-8 Encoded String"):
             value, valuelen = readUTF(buffer, propslen)
         elif type == self.types.index("UTF-8 String Pair"):
