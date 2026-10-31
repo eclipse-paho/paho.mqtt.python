@@ -10,7 +10,7 @@ jobs:
       max-parallel: 4
       matrix:
         python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +20,7 @@ jobs:
           ref: a4dc694010217b291ee78ee13a6d1db812f9babd
           path: paho.mqtt.testing
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
