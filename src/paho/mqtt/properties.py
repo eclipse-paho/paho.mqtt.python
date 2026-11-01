@@ -122,6 +122,17 @@ class VariableByteIntegers:  # Variable Byte Integer
         value = 0
         bytes = 0
         while 1:
+            # A Variable Byte Integer is at most four bytes long, which also
+            # caps the value at 268,435,455 (MQTT v5.0 section 1.5.5).  A fifth
+            # byte, or running out of data while a continuation bit is still
+            # pending, means the packet cannot be parsed, so it is malformed
+            # (sections 1.4 and 2.2.2.2).
+            if bytes >= 4:
+                raise MalformedPacket(
+                    "Variable Byte Integer is more than four bytes long"
+                )
+            if len(buffer) == 0:
+                raise MalformedPacket("Not enough data to decode Variable Byte Integer")
             bytes += 1
             digit = buffer[0]
             buffer = buffer[1:]
