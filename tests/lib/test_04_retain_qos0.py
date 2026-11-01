@@ -1,7 +1,7 @@
 # Test whether a client sends a correct retained PUBLISH to a topic with QoS 0.
 
 
-import tests.paho_test as paho_test
+from tests import paho_test
 
 mid = 16
 connect_packet = paho_test.gen_connect("retain-qos0-test", keepalive=60)
@@ -14,7 +14,7 @@ publish_packet = paho_test.gen_publish(
 def test_04_retain_qos0(server_socket, start_client):
     start_client("04-retain-qos0.py")
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)

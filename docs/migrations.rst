@@ -256,7 +256,7 @@ for with both paho-mqtt 1.x and 2.0).
 Fix connect_srv
 ***************
 
-`connect_srv()` didn't took the same argument as `connect()`. Fixed this, which means the signaure
+`connect_srv()` didn't took the same argument as `connect()`. Fixed this, which means the signature
 changed. But since connect_srv was broken in previous version, this should not have any negative impact.
 
 Added new properties

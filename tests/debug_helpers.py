@@ -45,7 +45,7 @@ def to_string(packet: bytes) -> str:
     if not packet:
         return ""
 
-    packet0 = struct.unpack("!B%ds" % (len(packet)-1), bytes(packet))
+    packet0 = struct.unpack(f"!B{len(packet)-1}s", bytes(packet))
     packet0 = packet0[0]
     cmd = packet0 & 0xF0
     if cmd == 0x00:

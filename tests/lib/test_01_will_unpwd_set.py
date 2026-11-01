@@ -6,7 +6,7 @@
 # "oibvvwqw" and password set to "#'^2hg9a&nm38*us".
 
 
-import tests.paho_test as paho_test
+from tests import paho_test
 
 connect_packet = paho_test.gen_connect(
     "01-will-unpwd-set",
@@ -18,7 +18,7 @@ connect_packet = paho_test.gen_connect(
 def test_01_will_unpwd_set(server_socket, start_client):
     start_client("01-will-unpwd-set.py")
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)

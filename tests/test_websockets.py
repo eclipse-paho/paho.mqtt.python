@@ -2,6 +2,7 @@ import socket
 from unittest.mock import Mock
 
 import pytest
+
 from paho.mqtt.client import WebsocketConnectionError, _WebsocketWrapper
 
 

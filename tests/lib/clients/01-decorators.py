@@ -1,5 +1,4 @@
 import paho.mqtt.client as mqtt
-
 from tests.paho_test import get_test_server_port, loop_until_keyboard_interrupt
 
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "decorators-test", clean_session=True)
@@ -24,7 +23,6 @@ def on_unsubscribe(mqttc, obj, mid):
 
 @mqttc.message_callback()
 def on_message(mqttc, obj, msg):
-    global payload
     mqttc.publish("decorators", qos=1, payload=payload)
 
 

@@ -1,16 +1,16 @@
+import re
 import threading
 import time
 import unicodedata
 
-import paho.mqtt.client as client
 import pytest
+
+from paho.mqtt import client
 from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
-
-import tests.mqtt5_props as mqtt5_props
-import tests.paho_test as paho_test
+from tests import mqtt5_props, paho_test
 
 # Import test fixture
 from tests.testsupport.broker import FakeBroker, fake_broker  # noqa: F401
@@ -813,9 +813,9 @@ class TestCompatibility:
 
         # User might compare to 0 to check for success
         assert rc_ok == 0
-        assert not rc_err == 0
-        assert not rc_again == 0
-        assert not rc_ok != 0
+        assert rc_err != 0
+        assert rc_again != 0
+        assert rc_ok == 0
         assert rc_err != 0
         assert rc_again != 0
 
@@ -838,7 +838,7 @@ class TestCompatibility:
         assert rc_ok + 1 == 1
 
     def test_migration_callback_version(self):
-        with pytest.raises(ValueError, match="see docs/migrations.rst"):
+        with pytest.raises(TypeError, match=re.escape("see docs/migrations.rst")):
             _ = client.Client("client-id")
 
     def test_callback_v1_mqtt3(self, fake_broker):

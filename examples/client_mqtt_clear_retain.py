@@ -40,11 +40,10 @@ def on_message(mqttc, userdata, msg):
     else:
         if userdata:
             print("Clearing topic " + msg.topic)
-        (rc, final_mid) = mqttc.publish(msg.topic, None, 1, True)
+        (_rc, final_mid) = mqttc.publish(msg.topic, None, 1, True)
 
 
 def on_publish(mqttc, userdata, mid, reason_code, properties):
-    global final_mid
     if mid == final_mid:
         sys.exit()
 
@@ -70,7 +69,7 @@ def main(argv):
     verbose = False
 
     try:
-        opts, args = getopt.getopt(argv, "dh:i:k:p:P:t:u:v",
+        opts, _args = getopt.getopt(argv, "dh:i:k:p:P:t:u:v",
                                    ["debug", "id", "keepalive", "port", "password", "topic", "username", "verbose"])
     except getopt.GetoptError:
         print_usage()

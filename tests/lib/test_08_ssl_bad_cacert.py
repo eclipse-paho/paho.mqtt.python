@@ -1,5 +1,6 @@
-import paho.mqtt.client as mqtt
 import pytest
+
+import paho.mqtt.client as mqtt
 
 
 def test_08_ssl_bad_cacert():

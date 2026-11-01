@@ -11,7 +11,7 @@
 # DISCONNECT message.
 
 
-import tests.paho_test as paho_test
+from tests import paho_test
 
 connect_packet = paho_test.gen_connect(
     "publish-helper-qos0-test", keepalive=60,
@@ -28,7 +28,7 @@ disconnect_packet = paho_test.gen_disconnect()
 def test_03_publish_helper_qos0(server_socket, start_client):
     start_client("03-publish-helper-qos0.py")
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)

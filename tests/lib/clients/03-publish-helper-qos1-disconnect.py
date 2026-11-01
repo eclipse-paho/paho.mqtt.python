@@ -1,5 +1,4 @@
 import paho.mqtt.publish
-
 from tests.paho_test import get_test_server_port, wait_for_keyboard_interrupt
 
 with wait_for_keyboard_interrupt():

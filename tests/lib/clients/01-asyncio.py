@@ -2,7 +2,6 @@ import asyncio
 import socket
 
 import paho.mqtt.client as mqtt
-
 from tests.paho_test import get_test_server_port
 
 client_id = 'asyncio-test'

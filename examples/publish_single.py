@@ -17,6 +17,6 @@
 
 import context  # Ensures paho is in PYTHONPATH
 
-import paho.mqtt.publish as publish
+from paho.mqtt import publish
 
 publish.single("paho/test/single", "boo", hostname="mqtt.eclipseprojects.io")

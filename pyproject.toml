@@ -96,6 +96,9 @@ filterwarnings = [
 ]
 
 [tool.ruff]
+line-length = 167
+
+[tool.ruff.lint]
 exclude = ["test/lib/python/*"]
 extend-select = [
     "B",
@@ -115,9 +118,8 @@ extend-select = [
     "W",
 ]
 ignore = []
-line-length = 167
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "examples/**/*.py" = [
     "B",
     "E402",
@@ -137,6 +139,8 @@ line-length = 167
     "S101",
     "S105",
     "S106",
+    "LOG015",
+    "TRY002",
 ]
 
 [tool.typos.default.extend-words]

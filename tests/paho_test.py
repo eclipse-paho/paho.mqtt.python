@@ -225,7 +225,7 @@ def gen_publish(topic, qos, payload=None, retain=False, dup=False, mid=0, proto_
         properties = mqtt5_props.prop_finalise(properties)
         rl += len(properties)
         # This will break if len(properties) > 127
-        pack_format = pack_format + "%ds"%(len(properties))
+        pack_format = pack_format + f"{len(properties)}s"
 
     if payload is not None:
         if isinstance(payload, str):

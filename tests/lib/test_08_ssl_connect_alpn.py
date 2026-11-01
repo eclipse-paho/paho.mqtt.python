@@ -22,7 +22,7 @@ def test_08_ssl_connect_alpn(alpn_ssl_server_socket, start_client):
 
     start_client("08-ssl-connect-alpn.py")
 
-    (conn, address) = alpn_ssl_server_socket.accept()
+    (conn, _address) = alpn_ssl_server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)

@@ -2,7 +2,6 @@ import os
 import ssl
 
 import paho.mqtt.client as mqtt
-
 from tests.paho_test import get_test_server_port, wait_for_keyboard_interrupt
 
 
