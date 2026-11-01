@@ -1,3 +1,24 @@
+v2.2.0 - 2026-11-xx
+===================
+
+- Update supported Python versions (PR #916, #956, #969)
+  **Drop** support for Python 3.7 and 3.8.
+  **Deprecation notice**: next release is expected to drop Python 3.9 and 3.10.
+- **Possible breaking change**: Change some exceptions from `ValueError` to `TypeError`
+  (in `max_queued_messages_set` and Client `callback_api_version` parameter) (Closes #972)
+  The breaking change is unlikely however, both exceptions are expected to only be
+  raised with broken code (e.g. need to pass wrong type - not just wrong value).
+- Type annotations fix: `bytearray` was missing as alternative of some payload (Closes #918)
+- Add `drop_out_messages` to discard outgoing message queue. This could be needed if broker lost
+  the session (Closes #935)
+- Honor MQTTv5 Server Keep Alive from CONNACK Properties (Closes #905)
+- Fix an keepalive disconnection when receiving large payload (Closes #914)
+- Fix bug in inflight message tracking & QoS 2 message, which could result in
+  negative counter (Closes #805)
+- Various reinforcement against corrupted or malformed packets (Closes #900, #970, #955, #965, #964, #860)
+- Expose ReasonCode names as documentation said (PR #913)
+- Fix broken `reinitialise()` (Closes #824)
+
 v2.1.0 - 2024-04-29
 ===================
 
