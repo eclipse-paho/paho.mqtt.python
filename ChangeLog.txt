@@ -1,3 +1,11 @@
+v2.1.1.dev0 - 2026-08-04
+========================
+
+- Lots of bug fixes. 
+- Docs improvements.
+- Large downloads without self-disconnecting
+- Bump to run CI
+
 v2.1.0 - 2024-04-29
 ===================
 
