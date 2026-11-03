@@ -2,6 +2,7 @@ import base64
 import hashlib
 import re
 import socketserver
+import socket
 from collections import OrderedDict
 
 import paho.mqtt.client as client
@@ -182,6 +183,8 @@ class TestValidHeaders:
         with fake_websocket_broker.serve(response):
             mqttc.connect("localhost", fake_websocket_broker.port, keepalive=10)
 
+            mqttc.socket().setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
             mqttc.disconnect()
 
     @pytest.mark.parametrize("mqtt_path", [
@@ -255,3 +258,4 @@ class TestValidHeaders:
             mqttc.connect("localhost", fake_websocket_broker.port, keepalive=10)
 
             mqttc.disconnect()
+
