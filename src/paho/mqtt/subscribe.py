@@ -169,6 +169,7 @@ def callback(callback, topics, qos=0, userdata=None, hostname="localhost",
 
     if tls is not None:
         if isinstance(tls, dict):
+            tls = tls.copy()
             insecure = tls.pop('insecure', False)
             client.tls_set(**tls)
             if insecure:

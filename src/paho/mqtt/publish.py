@@ -213,6 +213,7 @@ def multiple(
 
     if tls is not None:
         if isinstance(tls, dict):
+            tls = tls.copy()
             insecure = tls.pop('insecure', False)
             # mypy don't get that tls no longer contains the key insecure
             client.tls_set(**tls)  # type: ignore[misc]
