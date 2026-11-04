@@ -2,21 +2,24 @@ import binascii
 import struct
 
 
-def dump_packet(prefix: str, data: bytes) -> None:
+def dump_packet(prefix: str, data: bytes, is_mqtt5: bool = False) -> None:
     try:
-        data = to_string(data)
+        data = to_string(data, is_mqtt5)
         print(prefix, ": ", data, sep="")
-    except struct.error:
+    except (struct.error, NotImplementedError):
         data = binascii.b2a_hex(data).decode('utf8')
         print(prefix, " (not decoded): 0x", data, sep="")
 
 
 def remaining_length(packet: bytes) -> tuple[bytes, int]:
-    l = min(5, len(packet))  # noqa: E741
+    """ decode a Variable Byte Integer. Returns the bytes after decoded integer
+        and the integer.
+    """
+    l = min(4, len(packet))  # noqa: E741
     all_bytes = struct.unpack("!" + "B" * l, packet[:l])
     mult = 1
     rl = 0
-    for i in range(1, l - 1):
+    for i in range(l):
         byte = all_bytes[i]
 
         rl += (byte & 127) * mult
@@ -41,7 +44,7 @@ def to_hex_string(packet: bytes) -> str:
     return s
 
 
-def to_string(packet: bytes) -> str:
+def to_string(packet: bytes, is_mqtt5: bool = False) -> str:
     if not packet:
         return ""
 
@@ -53,13 +56,19 @@ def to_string(packet: bytes) -> str:
         return "0x00"
     elif cmd == 0x10:
         # CONNECT
-        (packet, rl) = remaining_length(packet)
+        (packet, rl) = remaining_length(packet[1:])
         pack_format = "!H" + str(len(packet) - 2) + 's'
         (slen, packet) = struct.unpack(pack_format, packet)
         pack_format = "!" + str(slen) + 'sBBH' + str(len(packet) - slen - 4) + 's'
         (protocol, proto_ver, flags, keepalive, packet) = struct.unpack(pack_format, packet)
         kind = ("clean-session" if flags & 2 else "durable")
         s = f"CONNECT, proto={protocol}{proto_ver}, keepalive={keepalive}, {kind}"
+
+        if is_mqtt5:
+            # Properties are before client_id
+            (packet, rl) = remaining_length(packet)
+            s = s + ", property_length=" + str(rl)
+            packet = packet[rl:]
 
         pack_format = "!H" + str(len(packet) - 2) + 's'
         (slen, packet) = struct.unpack(pack_format, packet)
@@ -117,7 +126,7 @@ def to_string(packet: bytes) -> str:
         dup = (packet0 & 0x08) >> 3
         qos = (packet0 & 0x06) >> 1
         retain = (packet0 & 0x01)
-        (packet, rl) = remaining_length(packet)
+        (packet, rl) = remaining_length(packet[1:])
         pack_format = "!H" + str(len(packet) - 2) + 's'
         (tlen, packet) = struct.unpack(pack_format, packet)
         pack_format = "!" + str(tlen) + 's' + str(len(packet) - tlen) + 's'
@@ -157,7 +166,7 @@ def to_string(packet: bytes) -> str:
         return "PUBCOMP, rl=" + str(rl) + ", mid=" + str(mid)
     elif cmd == 0x80:
         # SUBSCRIBE
-        (packet, rl) = remaining_length(packet)
+        (packet, rl) = remaining_length(packet[1:])
         pack_format = "!H" + str(len(packet) - 2) + 's'
         (mid, packet) = struct.unpack(pack_format, packet)
         s = "SUBSCRIBE, rl=" + str(rl) + ", mid=" + str(mid)
@@ -171,7 +180,7 @@ def to_string(packet: bytes) -> str:
         return s
     elif cmd == 0x90:
         # SUBACK
-        (packet, rl) = remaining_length(packet)
+        (packet, rl) = remaining_length(packet[1:])
         pack_format = "!H" + str(len(packet) - 2) + 's'
         (mid, packet) = struct.unpack(pack_format, packet)
         pack_format = "!" + "B" * len(packet)
@@ -183,7 +192,7 @@ def to_string(packet: bytes) -> str:
         return s
     elif cmd == 0xA0:
         # UNSUBSCRIBE
-        (packet, rl) = remaining_length(packet)
+        (packet, rl) = remaining_length(packet[1:])
         pack_format = "!H" + str(len(packet) - 2) + 's'
         (mid, packet) = struct.unpack(pack_format, packet)
         s = "UNSUBSCRIBE, rl=" + str(rl) + ", mid=" + str(mid)

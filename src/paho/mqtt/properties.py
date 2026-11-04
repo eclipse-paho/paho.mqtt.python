@@ -16,15 +16,8 @@
 
 import struct
 
+from .exception import MalformedPacket, MQTTException
 from .packettypes import PacketTypes
-
-
-class MQTTException(Exception):
-    pass
-
-
-class MalformedPacket(MQTTException):
-    pass
 
 
 def writeInt16(length):
