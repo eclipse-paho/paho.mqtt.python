@@ -8,7 +8,7 @@
 #   python: python3
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: check-builtin-literals
       # - id: check-executables-have-shebangs
@@ -22,12 +22,12 @@ repos:
       # - id: trailing-whitespace
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.17.0
+    rev: v1.51.1
     hooks:
       - id: typos
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.1.9
+    rev: v0.17.3
     hooks:
       - id: ruff  # See pyproject.toml for args
 

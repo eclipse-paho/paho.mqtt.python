@@ -305,14 +305,13 @@ def _decode_mid_reason_prop(packet_type: int, packet: bytes|bytearray, protocol:
     mid, = struct.unpack("!H", packet[:2])
     reasonCode = ReasonCode(packet_type)
     properties = Properties(packet_type)
-    if protocol == MQTTProtocolVersion.MQTTv5:
-        if len(packet) > 2:
-            reasonCode = ReasonCode(packet_type)
-            reasonCode.unpack(packet[2:])
-            if len(packet) > 3:
-                properties = Properties(packet_type)
-                _props, _props_len = properties.unpack(
-                    packet[3:])
+    if protocol == MQTTProtocolVersion.MQTTv5 and len(packet) > 2:
+        reasonCode = ReasonCode(packet_type)
+        reasonCode.unpack(packet[2:])
+        if len(packet) > 3:
+            properties = Properties(packet_type)
+            _props, _props_len = properties.unpack(
+                packet[3:])
 
     return mid, reasonCode, properties
 

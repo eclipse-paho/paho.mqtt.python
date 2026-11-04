@@ -111,7 +111,7 @@ mqttc.connect(args.host, port, args.keepalive)
 
 mqttc.loop_start()
 
-for x in range (0, args.nummsgs):
+for x in range(args.nummsgs):
     msg_txt = '{"msgnum": "'+str(x)+'"}'
     print("Publishing: "+msg_txt)
     infot = mqttc.publish(args.topic, msg_txt, qos=args.qos)

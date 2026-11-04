@@ -1,5 +1,6 @@
-import paho.mqtt.client as client
 import pytest
+
+from paho.mqtt import client
 
 
 class Test_client_function:

@@ -1,5 +1,4 @@
 import paho.mqtt.client as mqtt
-
 from tests.paho_test import get_test_server_port, loop_until_keyboard_interrupt
 
 first_connection = 1

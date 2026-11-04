@@ -157,7 +157,7 @@ def cleanRetained(port):
         while True:
             message = callback.messages.get(timeout=WAIT_NON_EVENT_TIMEOUT)
             if message["message"].payload != b"":
-                logging.info("deleting retained message for topic", message["message"])
+                logging.info("deleting retained message for topic %s", message["message"])
                 curclient.publish(message["message"].topic, b"", 0, retain=True)
     except queue.Empty:
         pass

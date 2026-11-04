@@ -1,5 +1,6 @@
-import paho.mqtt.client as mqtt
+import sys
 
+import paho.mqtt.client as mqtt
 from tests.paho_test import get_test_server_port, wait_for_keyboard_interrupt
 
 
@@ -13,4 +14,4 @@ mqttc.on_connect = on_connect
 with wait_for_keyboard_interrupt():
     mqttc.connect("localhost", get_test_server_port())
     mqttc.loop_forever()
-    exit(42)  # this is expected by the test case
+    sys.exit(42)  # this is expected by the test case

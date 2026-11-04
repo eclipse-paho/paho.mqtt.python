@@ -14,6 +14,7 @@ check; the binary reader must do the same.
 import struct
 
 import pytest
+
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import MalformedPacket, Properties, VariableByteIntegers
 

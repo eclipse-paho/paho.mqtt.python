@@ -1,7 +1,7 @@
 # Test the reconnect_on_failure = False mode
 import pytest
 
-import tests.paho_test as paho_test
+from tests import paho_test
 
 connect_packet = paho_test.gen_connect("01-reconnect-on-failure", keepalive=60)
 connack_packet_ok = paho_test.gen_connack(rc=0)
@@ -15,7 +15,7 @@ publish_packet = paho_test.gen_publish(
 def test_01_reconnect_on_failure(server_socket, start_client, ok_code):
     client = start_client("01-reconnect-on-failure.py", expected_returncode=42)
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)

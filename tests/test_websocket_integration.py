@@ -4,10 +4,10 @@ import re
 import socketserver
 from collections import OrderedDict
 
-import paho.mqtt.client as client
 import pytest
-from paho.mqtt.client import WebsocketConnectionError
 
+from paho.mqtt import client
+from paho.mqtt.client import WebsocketConnectionError
 from tests.testsupport.broker import fake_websocket_broker  # noqa: F401
 
 
@@ -185,7 +185,7 @@ class TestValidHeaders:
             mqttc.disconnect()
 
     @pytest.mark.parametrize("mqtt_path", [
-        "/mqtt"
+        "/mqtt",
         "/special",
         None,
     ])

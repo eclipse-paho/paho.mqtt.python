@@ -8,7 +8,7 @@
 # "pub/qos1/receive", payload of "message", QoS=1 and mid=123. The client
 # should handle this as per the spec by sending a PUBACK message.
 # The client should then exit with return code==0.
-import tests.paho_test as paho_test
+from tests import paho_test
 
 connect_packet = paho_test.gen_connect("publish-qos2-test", keepalive=60)
 connack_packet = paho_test.gen_connack(rc=0)
@@ -26,7 +26,7 @@ pubcomp_packet = paho_test.gen_pubcomp(mid)
 def test_03_publish_b2c_qos2(server_socket, start_client):
     start_client("03-publish-b2c-qos2.py")
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)

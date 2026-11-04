@@ -16,7 +16,7 @@
 
 import pytest
 
-import tests.paho_test as paho_test
+from tests import paho_test
 
 
 def expected_payload(i: int) -> bytes:
@@ -27,13 +27,13 @@ connack_packet = paho_test.gen_connack(rc=0)
 
 disconnect_packet = paho_test.gen_disconnect()
 
-first_connection_publishs = [
+first_connection_publishes = [
     paho_test.gen_publish(
         "topic", qos=1, mid=i+1, payload=expected_payload(i),
     )
     for i in range(10)
 ]
-second_connection_publishs = [
+second_connection_publishes = [
     paho_test.gen_publish(
         # I'm not sure we should have the mid+13.
         # Currently on reconnection client will do two wrong thing:
@@ -52,39 +52,39 @@ second_connection_pubacks = [
 def test_03_publish_fill_inflight(server_socket, start_client):
     start_client("03-publish-fill-inflight.py")
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)
     conn.send(connack_packet)
 
-    for packet in first_connection_publishs:
+    for packet in first_connection_publishes:
         paho_test.expect_packet(conn, "publish", packet)
 
     paho_test.expect_no_packet(conn, 0.5)
 
     conn.close()
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)
     conn.send(connack_packet)
 
-    for packet in second_connection_publishs[:10]:
+    for packet in second_connection_publishes[:10]:
         paho_test.expect_packet(conn, "publish", packet)
 
     paho_test.expect_no_packet(conn, 0.2)
 
     conn.send(second_connection_pubacks[0])
-    paho_test.expect_packet(conn, "publish", second_connection_publishs[10])
+    paho_test.expect_packet(conn, "publish", second_connection_publishes[10])
 
     paho_test.expect_no_packet(conn, 0.5)
 
     for packet in second_connection_pubacks[1:11]:
         conn.send(packet)
 
-    paho_test.expect_packet(conn, "publish", second_connection_publishs[11])
+    paho_test.expect_packet(conn, "publish", second_connection_publishes[11])
 
     paho_test.expect_no_packet(conn, 0.5)
 

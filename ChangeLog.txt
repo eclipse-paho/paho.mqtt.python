@@ -160,7 +160,7 @@ v1.5.0 - 2019-10-30
 * Add support for non-standard bridge connection. Closes #282
 * Fix hang with QoS 2 message and clean_session = False. The fix replace hang
   with message DROP. See README for known limitation. Closes #284 and #286
-* Fix connection establishement timeout. Closes #291 and #288
+* Fix connection establishment timeout. Closes #291 and #288
 * Add support for connecting through a proxy. Closes #315
 * Add MQTT v5 support. Closes #334
 * Improve error message when sending queue is full. Closes #378

@@ -141,7 +141,7 @@ class ReasonCode:
         if identifier not in self.names:
             raise KeyError(identifier)
         names = self.names[identifier]
-        namelist = [name for name in names.keys() if packetType in names[name]]
+        namelist = [name for name in names if packetType in names[name]]
         if len(namelist) != 1:
             raise ValueError(f"Expected exactly one name, found {namelist!r}")
         return namelist[0]
@@ -153,10 +153,9 @@ class ReasonCode:
         Used when setting the reason code for a packetType
         check that only valid codes for the packet are set.
         """
-        for code in self.names.keys():
-            if name in self.names[code].keys():
-                if self.packetType in self.names[code][name]:
-                    return code
+        for code in self.names:
+            if name in self.names[code] and self.packetType in self.names[code][name]:
+                return code
         raise KeyError(f"Reason code name not found: {name}")
 
     def set(self, name: str) -> None:
@@ -172,7 +171,7 @@ class ReasonCode:
         """Returns the reason code name corresponding to the numeric value which is set."""
         return self.__getName__(self.packetType, self.value)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, int):
             return self.value == other
         if isinstance(other, str):

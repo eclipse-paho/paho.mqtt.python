@@ -46,7 +46,7 @@ def get_amazon_auth_headers(access_key, secret_key, region, host, port, headers=
     service = "iotdevicegateway"
     algorithm = "AWS4-HMAC-SHA256"
 
-    t = datetime.datetime.utcnow()
+    t = datetime.datetime.now(tz=datetime.UTC)
     amzdate = t.strftime('%Y%m%dT%H%M%SZ')
     datestamp = t.strftime("%Y%m%d") # Date w/o time, used in credential scope
 
@@ -68,7 +68,7 @@ def get_amazon_auth_headers(access_key, secret_key, region, host, port, headers=
     # get into 'canonical' form - lowercase, sorted alphabetically
     canonical_headers = "\n".join(sorted("{}:{}".format(i.lower(), j).strip() for i, j in headers.items()))
     # Headers to sign - alphabetical order
-    signed_headers = ";".join(sorted(i.lower().strip() for i in headers.keys()))
+    signed_headers = ";".join(sorted(i.lower().strip() for i in headers))
 
     # No payload
     payload_hash = hashlib.sha256("").hexdigest().lower()

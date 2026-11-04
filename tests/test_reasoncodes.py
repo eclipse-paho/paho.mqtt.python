@@ -1,4 +1,5 @@
 import pytest
+
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.reasoncodes import ReasonCode, ReasonCodes
 
@@ -23,7 +24,7 @@ class TestReasonCode:
 
         assert not rc_success > 0
         assert rc_protocol_error > 0
-        assert not rc_success != 0
+        assert rc_success == 0
         assert rc_protocol_error != 0
 
     def test_compatibility(self):

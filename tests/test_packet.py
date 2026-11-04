@@ -1,4 +1,5 @@
 import pytest
+
 from paho.mqtt import _packet
 from paho.mqtt.enums import MQTTProtocolVersion
 from paho.mqtt.exception import MalformedPacket

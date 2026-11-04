@@ -17,7 +17,7 @@
 
 import context  # Ensures paho is in PYTHONPATH
 
-import paho.mqtt.subscribe as subscribe
+from paho.mqtt import subscribe
 
 
 def print_msg(client, userdata, message):

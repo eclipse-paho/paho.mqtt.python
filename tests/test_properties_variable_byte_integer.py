@@ -14,6 +14,7 @@ lets a peer drive the property parser far past the end of its region.
 import struct
 
 import pytest
+
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import MalformedPacket, Properties, VariableByteIntegers
 

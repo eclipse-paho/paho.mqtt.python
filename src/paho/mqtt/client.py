@@ -288,7 +288,6 @@ class WebsocketConnectionError(ConnectionError):
 
         It's raised when unable to perform the Websocket handshake.
     """
-    pass
 
 
 def error_string(mqtt_errno: MQTTErrorCode | int) -> str:
@@ -446,7 +445,7 @@ def _force_bytes(s: str | bytes | bytearray) -> bytes | bytearray:
     return s
 
 
-def _encode_payload(payload: str | bytes | bytearray | int | float | None) -> bytes | bytearray:
+def _encode_payload(payload: str | bytes | bytearray | float | None) -> bytes | bytearray:
     if isinstance(payload, str):
         return payload.encode("utf-8")
 
@@ -759,7 +758,7 @@ class Client:
         if isinstance(self._callback_api_version, str):
             # Help user to migrate, it probably provided a client id
             # as first arguments
-            raise ValueError(
+            raise TypeError(
                 "Unsupported callback API version: version 2.0 added a callback_api_version, see docs/migrations.rst for details"
             )
         if self._callback_api_version not in CallbackAPIVersion:
@@ -1468,7 +1467,7 @@ class Client:
 
             try:
                 return self.connect(host, port, keepalive, bind_address, bind_port, clean_start, properties)
-            except Exception:  # noqa: S110
+            except Exception:  # noqa: S110,BLE001
                 pass
 
         raise ValueError("No SRV hosts responded")
@@ -1682,7 +1681,7 @@ class Client:
             if self._state not in (_ConnectionState.MQTT_CS_DISCONNECTING, _ConnectionState.MQTT_CS_DISCONNECTED):
                 self._state = _ConnectionState.MQTT_CS_CONNECTION_LOST
             return MQTTErrorCode.MQTT_ERR_CONN_LOST
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Note that KeyboardInterrupt, etc. can still terminate since they
             # are not derived from Exception
             return MQTTErrorCode.MQTT_ERR_UNKNOWN
@@ -1756,9 +1755,8 @@ class Client:
         :raises ValueError: if qos is not one of 0, 1 or 2
         :raises ValueError: if the length of the payload is greater than 268435455 bytes.
         """
-        if self._protocol != MQTTv5:
-            if topic is None or len(topic) == 0:
-                raise ValueError('Invalid topic.')
+        if self._protocol != MQTTv5 and (topic is None or len(topic) == 0):
+            raise ValueError('Invalid topic.')
 
         topic_bytes = topic.encode('utf-8')
 
@@ -1850,7 +1848,7 @@ class Client:
         Requires brokers that support bridge mode.
 
         Under bridge mode, the broker will identify the client as a bridge and
-        not send it's own messages back to it. Hence a subsciption of # is
+        not send it's own messages back to it. Hence a subscription of # is
         possible without message loops. This feature also correctly propagates
         the retain flag on the messages.
 
@@ -2096,10 +2094,9 @@ class Client:
             return MQTTErrorCode.MQTT_ERR_NO_CONN
 
         max_packets = len(self._out_messages) + len(self._in_messages)
-        if max_packets < 1:
-            max_packets = 1
+        max_packets = max(max_packets, 1)
 
-        for _ in range(0, max_packets):
+        for _ in range(max_packets):
             if self._sock is None:
                 return MQTTErrorCode.MQTT_ERR_NO_CONN
             rc = self._packet_read()
@@ -2185,7 +2182,7 @@ class Client:
         """Set the maximum number of messages in the outgoing message queue.
         0 means unlimited."""
         if not isinstance(queue_size, int):
-            raise ValueError('Invalid type of queue size.')
+            raise TypeError("queue_size should be an int")
         self.max_queued_messages = queue_size
         return self
 
@@ -2446,7 +2443,7 @@ class Client:
 
     @property
     def on_connect(self) -> CallbackOnConnect | None:
-        """The callback called when the broker reponds to our connection request.
+        """The callback called when the broker responds to our connection request.
 
         Expected signature for callback API version 2::
 
@@ -2786,7 +2783,7 @@ class Client:
 
     @property
     def on_socket_open(self) -> CallbackOnSocket | None:
-        """The callback called just after the socket was opend.
+        """The callback called just after the socket was opened.
 
         This should be used to register the socket to an external event loop for reading.
 
@@ -3264,7 +3261,7 @@ class Client:
             buf = fmt % args
             try:
                 self.on_log(self, self._userdata, level, buf)
-            except Exception:  # noqa: S110
+            except Exception:  # noqa: S110,BLE001
                 # Can't _easy_log this, as we'll recurse until we break
                 pass  # self._logger will pick this up, so we're fine
         if self._logger is not None:
@@ -3286,7 +3283,7 @@ class Client:
                 try:
                     if self._ping_t  == 0 or now - self._ping_t >= self._keepalive:
                         self._send_pingreq()
-                except Exception:
+                except Exception:  # noqa: BLE001
                     self._sock_close()
                     self._do_on_disconnect(
                         packet_from_broker=False,
@@ -3491,9 +3488,7 @@ class Client:
 
         connect_flags = 0
         if self._protocol == MQTTv5:
-            if self._clean_start is True:
-                connect_flags |= 0x02
-            elif self._clean_start == MQTT_CLEAN_START_FIRST_ONLY and self._mqttv5_first_connect:
+            if self._clean_start is True or (self._clean_start == MQTT_CLEAN_START_FIRST_ONLY and self._mqttv5_first_connect):
                 connect_flags |= 0x02
         elif self._clean_session:
             connect_flags |= 0x02
@@ -3605,22 +3600,20 @@ class Client:
         packet = bytearray()
         packet.append(command)
 
-        if self._protocol == MQTTv5:
-            if properties is not None or reasoncode is not None:
-                if reasoncode is None:
-                    reasoncode = ReasonCode(DISCONNECT >> 4, identifier=0)
-                remaining_length += 1
-                if properties is not None:
-                    packed_props = properties.pack()
-                    remaining_length += len(packed_props)
+        if self._protocol == MQTTv5 and (properties is not None or reasoncode is not None):
+            if reasoncode is None:
+                reasoncode = ReasonCode(DISCONNECT >> 4, identifier=0)
+            remaining_length += 1
+            if properties is not None:
+                packed_props = properties.pack()
+                remaining_length += len(packed_props)
 
         self._pack_remaining_length(packet, remaining_length)
 
-        if self._protocol == MQTTv5:
-            if reasoncode is not None:
-                packet += reasoncode.pack()
-                if properties is not None:
-                    packet += packed_props
+        if self._protocol == MQTTv5 and reasoncode is not None:
+            packet += reasoncode.pack()
+            if properties is not None:
+                packet += packed_props
 
         return self._packet_queue(command, packet, 0, 0)
 
@@ -3798,10 +3791,9 @@ class Client:
 
         # If we have an external event loop registered, use that instead
         # of calling loop_write() directly.
-        if self._thread is None and self._on_socket_register_write is None:
-            if self._in_callback_mutex.acquire(False):
-                self._in_callback_mutex.release()
-                return self.loop_write()
+        if self._thread is None and self._on_socket_register_write is None and self._in_callback_mutex.acquire(False):
+            self._in_callback_mutex.release()
+            return self.loop_write()
 
         self._call_socket_register_write()
 
@@ -4407,7 +4399,7 @@ class Client:
         return MQTTErrorCode.MQTT_ERR_SUCCESS
 
     def _handle_pubackcomp(
-        self, cmd: Literal['PUBACK'] | Literal['PUBCOMP']
+        self, cmd: Literal['PUBACK', 'PUBCOMP']
     ) -> MQTTErrorCode:
         result: _packet.PubackPacket|_packet.PubcompPacket
         if cmd == "PUBACK":
@@ -4477,7 +4469,7 @@ class Client:
             with self._in_callback_mutex:
                 try:
                     on_connect_fail(self, self._userdata)
-                except Exception as err:
+                except Exception as err:  # noqa: BLE001
                     self._easy_log(
                         MQTT_LOG_ERR, 'Caught exception in on_connect_fail: %s', err)
 
@@ -4869,8 +4861,7 @@ class _WebsocketWrapper:
 
             # if frame payload is shorter than the requested data, read only the possible part
             readindex = chunk_endindex
-            if payload_length < readindex:
-                readindex = payload_length
+            readindex = min(readindex, payload_length)
 
             if readindex > 0:
                 # get payload chunk

@@ -3,7 +3,7 @@
 # Use paho.mqtt.publish helper for that.
 
 
-import tests.paho_test as paho_test
+from tests import paho_test
 
 connect_packet = paho_test.gen_connect(
     "publish-helper-qos1-disconnect-test", keepalive=60,
@@ -26,7 +26,7 @@ disconnect_packet = paho_test.gen_disconnect()
 def test_03_publish_helper_qos1_disconnect(server_socket, start_client):
     start_client("03-publish-helper-qos1-disconnect.py")
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(10)
 
     paho_test.expect_packet(conn, "connect", connect_packet)
@@ -36,7 +36,7 @@ def test_03_publish_helper_qos1_disconnect(server_socket, start_client):
     # Disconnect client. It should reconnect.
     conn.close()
 
-    (conn, address) = server_socket.accept()
+    (conn, _address) = server_socket.accept()
     conn.settimeout(15)
 
     paho_test.expect_packet(conn, "connect", connect_packet)

@@ -1,5 +1,4 @@
 import paho.mqtt.client as mqtt
-
 from tests.paho_test import get_test_server_port, loop_until_keyboard_interrupt
 
 sent_mid = -1
@@ -19,7 +18,6 @@ def on_disconnect(mqttc, obj, rc):
 
 
 def on_publish(mqttc, obj, mid):
-    global sent_mid
     assert mid == sent_mid, f"Invalid mid: ({mid})"
     mqttc.disconnect()
 

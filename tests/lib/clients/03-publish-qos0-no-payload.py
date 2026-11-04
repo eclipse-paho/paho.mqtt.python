@@ -1,5 +1,4 @@
 import paho.mqtt.client as mqtt
-
 from tests.paho_test import get_test_server_port, loop_until_keyboard_interrupt
 
 sent_mid = -1
@@ -8,7 +7,7 @@ sent_mid = -1
 def on_connect(mqttc, obj, flags, rc):
     global sent_mid
     assert rc == 0, f"Connect failed ({rc})"
-    (res, sent_mid) = mqttc.publish("pub/qos0/no-payload/test")
+    (_res, sent_mid) = mqttc.publish("pub/qos0/no-payload/test")
 
 
 def on_publish(mqttc, obj, mid):
