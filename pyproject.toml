@@ -9,32 +9,36 @@ description = "MQTT version 5.0/3.1.1 client class"
 readme = "README.rst"
 # see https://lists.spdx.org/g/Spdx-legal/topic/request_for_adding_eclipse/67981884
 # for why Eclipse Distribution License v1.0 is listed as BSD-3-Clause
-license = { text = "EPL-2.0 OR BSD-3-Clause" }
+license = "EPL-2.0 OR BSD-3-Clause"
+license-files = ["LICENSE.txt", "epl-v20", "edl-v10"]
 requires-python = ">=3.9"
 authors = [
     { name = "Roger Light", email = "roger@atchoo.org" },
 ]
 keywords = [
+    "mqtt",
     "paho",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved",
     "Natural Language :: English",
-    "Operating System :: MacOS :: MacOS X",
-    "Operating System :: Microsoft :: Windows",
-    "Operating System :: POSIX",
+    "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Communications",
     "Topic :: Internet",
+    "Typing :: Typed",
 ]
 dependencies = []
+import-names = ["paho"]
 
 [project.optional-dependencies]
 proxy = [
@@ -42,8 +46,10 @@ proxy = [
 ]
 
 [project.urls]
-Homepage = "http://eclipse.org/paho"
+Homepage = "https://eclipse.org/paho"
 Documentation = "https://eclipse.dev/paho/files/paho.mqtt.python/html/index.html"
+Source = "https://github.com/eclipse-paho/paho.mqtt.python"
+Issues = "https://github.com/eclipse-paho/paho.mqtt.python/issues"
 
 [tool.coverage.report]
 exclude_also = [
