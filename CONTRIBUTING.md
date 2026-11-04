@@ -41,13 +41,13 @@ Contact the project developers via the project's "dev" list.
 
 This project uses Github issues to track ongoing development and issues.
 
-- https://github.com/eclipse/paho.mqtt.python/issues
+- https://github.com/eclipse-paho/paho.mqtt.python/issues
 
 ## Create a new bug:
 
 Be sure to search for existing bugs before you create another one. Remember that contributions are always welcome!
 
-- https://github.com/eclipse/paho.mqtt.python/issues
+- https://github.com/eclipse-paho/paho.mqtt.python/issues
 
 ## Committer resources:
 
@@ -69,7 +69,7 @@ The process to make a release is the following:
 * Make sure your git is clean, especially the ``dist/`` folder.
 * Build a release: ``python -m build .``
 * You can also get the latest build from Github action. It should be identical to your local build:
-  https://github.com/eclipse/paho.mqtt.python/actions/workflows/build.yml?query=branch%3Amaster
+  https://github.com/eclipse-paho/paho.mqtt.python/actions/workflows/build.yml?query=branch%3Amaster
 * Then upload the dist file, you can follow instruction on https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives
   It should mostly be ``python -m twine upload dist/*``
 * Create a release on Github, copy-pasting the release note from Changelog.

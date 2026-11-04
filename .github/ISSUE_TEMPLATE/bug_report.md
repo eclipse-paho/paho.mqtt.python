@@ -44,7 +44,7 @@ demonstrates the issue (ideally one that can be run without modification, i.e. r
 
 For many issues, especially when you cannot provide code to replicate the issue, it's helpful to include logs. Please 
 consider including:
- * library logs; see [the readme](https://github.com/eclipse/paho.mqtt.python#enable_logger) and [logger example](https://github.com/eclipse/paho.mqtt.python/blob/master/examples/client_logger.py).
+ * library logs; see [the readme](https://github.com/eclipse-paho/paho.mqtt.python#enable_logger) and [logger example](https://github.com/eclipse-paho/paho.mqtt.python/blob/master/examples/client_logger.py).
  * broker logs (availability will depend the server in use)
 
 

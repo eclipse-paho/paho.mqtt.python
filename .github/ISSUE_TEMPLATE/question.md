@@ -22,9 +22,9 @@ within a day. Please use the tags MQTT, Python and Paho.
 Prior to asking a question here, please:
 
 - [ ] Search the resources mentioned above (it's likely someone else has asked the same question)
-- [ ] Read the [readme](https://github.com/eclipse/paho.mqtt.python/blob/master/README.rst) (especially the
-"Known limitations" section) and look at the [examples](https://github.com/eclipse/paho.mqtt.python/tree/master/examples).
-- [ ] Search through the [project issues](https://github.com/eclipse/paho.mqtt.python/issues).
+- [ ] Read the [readme](https://github.com/eclipse-paho/paho.mqtt.python/blob/master/README.rst) (especially the
+"Known limitations" section) and look at the [examples](https://github.com/eclipse-paho/paho.mqtt.python/tree/master/examples).
+- [ ] Search through the [project issues](https://github.com/eclipse-paho/paho.mqtt.python/issues).
 - [ ] Confirm that you are using the latest release of the library.
 - [ ] Ensure your question is specific to this project; consider using another tool (e.g. [MQTTX](https://mqttx.app/) / [mosquitto_sub](https://mosquitto.org/man/mosquitto_sub-1.html))
 to test your assumptions.

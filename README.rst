@@ -3,7 +3,7 @@ Eclipse Paho™ MQTT Python Client
 
 The `full documentation is available here <documentation_>`_.
 
-**Warning breaking change** - Release 2.0 contains a breaking change; see the `release notes <https://github.com/eclipse/paho.mqtt.python/releases/tag/v2.0.0>`_ and `migration details <https://eclipse.dev/paho/files/paho.mqtt.python/html/migrations.html>`_.
+**Warning breaking change** - Release 2.0 contains a breaking change; see the `release notes <https://github.com/eclipse-paho/paho.mqtt.python/releases/tag/v2.0.0>`_ and `migration details <https://eclipse.dev/paho/files/paho.mqtt.python/html/migrations.html>`_.
 
 This document describes the source code for the `Eclipse Paho <http://eclipse.org/paho/>`_ MQTT Python client library, which implements versions 5.0, 3.1.1, and 3.1 of the MQTT protocol.
 
@@ -59,7 +59,7 @@ To obtain the full code, including examples and tests, you can clone the git rep
 
 ::
 
-    git clone https://github.com/eclipse/paho.mqtt.python
+    git clone https://github.com/eclipse-paho/paho.mqtt.python
 
 
 Once you have the code, it can be installed from your repository as well:
@@ -596,7 +596,7 @@ Example:
 Reporting bugs
 --------------
 
-Please report bugs in the issues tracker at https://github.com/eclipse/paho.mqtt.python/issues.
+Please report bugs in the issues tracker at https://github.com/eclipse-paho/paho.mqtt.python/issues.
 
 More information
 ----------------
@@ -607,5 +607,5 @@ General questions about the MQTT protocol itself (not this library) are discusse
 
 There is much more information available via the `MQTT community site <http://mqtt.org/>`_.
 
-.. _examples: https://github.com/eclipse/paho.mqtt.python/tree/master/examples
+.. _examples: https://github.com/eclipse-paho/paho.mqtt.python/tree/master/examples
 .. _documentation: https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
