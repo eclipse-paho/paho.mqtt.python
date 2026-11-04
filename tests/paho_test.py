@@ -56,7 +56,7 @@ def create_server_socket_ssl(*, path = ssl_path, verify_mode=None, alpn_protocol
     return (ssock, port)
 
 
-def expect_packet(sock, name, expected):
+def expect_packet(sock, name, expected, is_mqtt5: bool = False):
     rlen = len(expected) if len(expected) > 0 else 1
 
     packet_recvd = b""
@@ -69,11 +69,11 @@ def expect_packet(sock, name, expected):
     except socket.timeout:  # pragma: no cover
         pass
 
-    assert packet_matches(name, packet_recvd, expected)
+    assert packet_matches(name, packet_recvd, expected, is_mqtt5=is_mqtt5)
     return True
 
 
-def expect_no_packet(sock, delay=1):
+def expect_no_packet(sock, delay=1, is_mqtt5: bool = False):
     """ expect that nothing is received within given delay
     """
     try:
@@ -86,16 +86,16 @@ def expect_no_packet(sock, delay=1):
         sock.settimeout(previous_timeout)
 
     if data is not None:
-        dump_packet("Received unexpected", data)
+        dump_packet("Received unexpected", data, is_mqtt5=is_mqtt5)
 
     assert data is None, "shouldn't receive any data"
 
 
-def packet_matches(name, recvd, expected):
+def packet_matches(name, recvd, expected, is_mqtt5: bool = False):
     if recvd != expected:  # pragma: no cover
         print(f"FAIL: Received incorrect {name}.")
-        dump_packet("Received", recvd)
-        dump_packet("Expected", expected)
+        dump_packet("Received", recvd, is_mqtt5=is_mqtt5)
+        dump_packet("Expected", expected, is_mqtt5=is_mqtt5)
         return False
     else:
         return True
@@ -139,9 +139,6 @@ def gen_connect(
         connect_flags = connect_flags | 0x02
 
     if proto_ver == 5:
-        if properties == b"":
-            properties += mqtt5_props.gen_uint16_prop(mqtt5_props.PROP_RECEIVE_MAXIMUM, 20)
-
         if session_expiry != -1:
             properties += mqtt5_props.gen_uint32_prop(mqtt5_props.PROP_SESSION_EXPIRY_INTERVAL, session_expiry)
 

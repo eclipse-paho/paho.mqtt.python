@@ -161,7 +161,7 @@ class ReasonCode:
     def set(self, name: str) -> None:
         self.value = self.getId(name)
 
-    def unpack(self, buffer: bytearray) -> int:
+    def unpack(self, buffer: bytes|bytearray) -> int:
         c = buffer[0]
         name = self.__getName__(self.packetType, c)
         self.value = self.getId(name)

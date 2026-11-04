@@ -38,6 +38,8 @@ import warnings
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Union, cast, overload
 
+from paho.mqtt import _packet
+from paho.mqtt.exception import MalformedPacket
 from paho.mqtt.packettypes import PacketTypes
 
 from .enums import CallbackAPIVersion, ConnackCode, LogLevel, MessageState, MessageType, MQTTErrorCode, MQTTProtocolVersion, PahoClientMode, _ConnectionState
@@ -348,37 +350,8 @@ def connack_string(connack_code: int|ReasonCode) -> str:
     else:
         return "Connection Refused: unknown reason."
 
-
-def convert_connack_rc_to_reason_code(connack_code: ConnackCode) -> ReasonCode:
-    """Convert a MQTTv3 / MQTTv3.1.1 connack result to `ReasonCode`.
-
-    This is used in `on_connect` callback to have a consistent API.
-
-    Be careful that the numeric value isn't the same, for example:
-
-    >>> ConnackCode.CONNACK_REFUSED_SERVER_UNAVAILABLE == 3
-    >>> convert_connack_rc_to_reason_code(ConnackCode.CONNACK_REFUSED_SERVER_UNAVAILABLE) == 136
-
-    It's recommended to compare by names
-
-    >>> code_to_test = ReasonCode(PacketTypes.CONNACK, "Server unavailable")
-    >>> convert_connack_rc_to_reason_code(ConnackCode.CONNACK_REFUSED_SERVER_UNAVAILABLE) == code_to_test
-    """
-    if connack_code == ConnackCode.CONNACK_ACCEPTED:
-        return ReasonCode(PacketTypes.CONNACK, "Success")
-    if connack_code == ConnackCode.CONNACK_REFUSED_PROTOCOL_VERSION:
-        return ReasonCode(PacketTypes.CONNACK, "Unsupported protocol version")
-    if connack_code == ConnackCode.CONNACK_REFUSED_IDENTIFIER_REJECTED:
-        return ReasonCode(PacketTypes.CONNACK, "Client identifier not valid")
-    if connack_code == ConnackCode.CONNACK_REFUSED_SERVER_UNAVAILABLE:
-        return ReasonCode(PacketTypes.CONNACK, "Server unavailable")
-    if connack_code == ConnackCode.CONNACK_REFUSED_BAD_USERNAME_PASSWORD:
-        return ReasonCode(PacketTypes.CONNACK, "Bad user name or password")
-    if connack_code == ConnackCode.CONNACK_REFUSED_NOT_AUTHORIZED:
-        return ReasonCode(PacketTypes.CONNACK, "Not authorized")
-
-    return ReasonCode(PacketTypes.CONNACK, "Unspecified error")
-
+# convert_connack_rc_to_reason_code was exposed in public API. Kept it exposed.
+convert_connack_rc_to_reason_code = _packet.convert_connack_rc_to_reason_code
 
 def convert_disconnect_error_code_to_reason_code(rc: MQTTErrorCode) -> ReasonCode:
     """Convert an MQTTErrorCode to Reason code.
@@ -401,6 +374,8 @@ def convert_disconnect_error_code_to_reason_code(rc: MQTTErrorCode) -> ReasonCod
         return ReasonCode(PacketTypes.DISCONNECT, "Keep alive timeout")
     if rc == MQTTErrorCode.MQTT_ERR_CONN_LOST:
         return ReasonCode(PacketTypes.DISCONNECT, "Unspecified error")
+    if rc == MQTTErrorCode.MQTT_ERR_PROTOCOL:
+        return ReasonCode(PacketTypes.DISCONNECT, "Protocol error")
     return ReasonCode(PacketTypes.DISCONNECT, "Unspecified error")
 
 
@@ -3170,7 +3145,11 @@ class Client:
 
         # All data for this packet is read.
         self._in_packet['pos'] = 0
-        rc = self._packet_handle()
+        try:
+            rc = self._packet_handle()
+        except MalformedPacket as exc:
+            self._easy_log(MQTT_LOG_DEBUG, "Received malformed packet: %s", exc)
+            rc = MQTTErrorCode.MQTT_ERR_PROTOCOL
 
         # Free data and reset values
         self._in_packet = {
@@ -3868,58 +3847,44 @@ class Client:
         return MQTTErrorCode.MQTT_ERR_SUCCESS
 
     def _handle_connack(self) -> MQTTErrorCode:
-        if self._protocol == MQTTv5:
-            if self._in_packet['remaining_length'] < 2:
-                return MQTTErrorCode.MQTT_ERR_PROTOCOL
-        elif self._in_packet['remaining_length'] != 2:
-            return MQTTErrorCode.MQTT_ERR_PROTOCOL
+        result = _packet.decode_connack(self._in_packet["command"], self._in_packet["packet"], self._protocol)
 
-        if self._protocol == MQTTv5:
-            (flags, result) = struct.unpack(
-                "!BB", self._in_packet['packet'][:2])
-            if result == 1:
-                # This is probably a failure from a broker that doesn't support
-                # MQTT v5.
-                reason = ReasonCode(CONNACK >> 4, aName="Unsupported protocol version")
-                properties = None
-            else:
-                reason = ReasonCode(CONNACK >> 4, identifier=result)
-                properties = Properties(CONNACK >> 4)
-                properties.unpack(self._in_packet['packet'][2:])
-                if hasattr(properties, "ServerKeepAlive"):
-                    # MQTT 5.0: when the server returns a Server Keep Alive in
-                    # CONNACK, the client must use that value instead of the one
-                    # it sent (MQTT 5.0 spec 3.2.2.3.14).
-                    self._keepalive = properties.ServerKeepAlive
-        else:
-            (flags, result) = struct.unpack("!BB", self._in_packet['packet'])
-            reason = convert_connack_rc_to_reason_code(result)
-            properties = None
+        flags = result.flags
+        reason = result.reason
+        properties = result.properties
+        connack_rc = result.rc
+
+        if properties is not None and hasattr(properties, "ServerKeepAlive"):
+            # MQTT 5.0: when the server returns a Server Keep Alive in
+            # CONNACK, the client must use that value instead of the one
+            # it sent (MQTT 5.0 spec 3.2.2.3.14).
+            self._keepalive = properties.ServerKeepAlive
+
         if self._protocol == MQTTv311:
-            if result == CONNACK_REFUSED_PROTOCOL_VERSION:
+            if connack_rc == CONNACK_REFUSED_PROTOCOL_VERSION:
                 if not self._reconnect_on_failure:
                     return MQTT_ERR_PROTOCOL
                 self._easy_log(
                     MQTT_LOG_DEBUG,
                     "Received CONNACK (%s, %s), attempting downgrade to MQTT v3.1.",
-                    flags, result
+                    flags, connack_rc
                 )
                 # Downgrade to MQTT v3.1
                 self._protocol = MQTTv31
                 return self.reconnect()
-            elif (result == CONNACK_REFUSED_IDENTIFIER_REJECTED
+            elif (connack_rc == CONNACK_REFUSED_IDENTIFIER_REJECTED
                     and self._client_id == b''):
                 if not self._reconnect_on_failure:
                     return MQTT_ERR_PROTOCOL
                 self._easy_log(
                     MQTT_LOG_DEBUG,
                     "Received CONNACK (%s, %s), attempting to use non-empty CID",
-                    flags, result,
+                    flags, connack_rc,
                 )
                 self._client_id = _base62(uuid.uuid4().int, padding=22).encode("utf8")
                 return self.reconnect()
 
-        if result == 0:
+        if connack_rc == 0:
             self._state = _ConnectionState.MQTT_CS_CONNECTED
             self._reconnect_delay = None
 
@@ -3928,7 +3893,7 @@ class Client:
                 MQTT_LOG_DEBUG, "Received CONNACK (%s, %s) properties=%s", flags, reason, properties)
         else:
             self._easy_log(
-                MQTT_LOG_DEBUG, "Received CONNACK (%s, %s)", flags, result)
+                MQTT_LOG_DEBUG, "Received CONNACK (%s, %s)", flags, connack_rc)
 
         # it won't be the first successful connect any more
         self._mqttv5_first_connect = False
@@ -3951,7 +3916,13 @@ class Client:
                             on_connect = cast(CallbackOnConnect_v1_mqtt3, on_connect)
 
                             on_connect(
-                                self, self._userdata, flags_dict, result)
+                                self,
+                                self._userdata,
+                                flags_dict,
+                                # TODO: ideally we should update the on_connect signature
+                                # this "rc" never was an MQTTErrorCode but always an ConnackCode
+                                cast(MQTTErrorCode, connack_rc),
+                                )
                     elif self._callback_api_version == CallbackAPIVersion.VERSION2:
                         on_connect = cast(CallbackOnConnect_v2, on_connect)
 
@@ -3977,7 +3948,7 @@ class Client:
                     if not self.suppress_exceptions:
                         raise
 
-        if result == 0:
+        if connack_rc == 0:
             rc = MQTTErrorCode.MQTT_ERR_SUCCESS
             with self._out_message_mutex:
                 for m in self._out_messages.values():
@@ -4041,7 +4012,7 @@ class Client:
                     self.loop_write()  # Process outgoing messages that have just been queued up
 
             return rc
-        elif result > 0 and result < 6:
+        elif connack_rc > 0 and connack_rc < 6:
             return MQTTErrorCode.MQTT_ERR_CONN_REFUSED
         else:
             return MQTTErrorCode.MQTT_ERR_PROTOCOL
@@ -4065,15 +4036,9 @@ class Client:
         return retval
 
     def _handle_disconnect(self) -> None:
-        packet_type = DISCONNECT >> 4
-        reasonCode = properties = None
-        if self._in_packet['remaining_length'] > 0:
-            reasonCode = ReasonCode(packet_type)
-            reasonCode.unpack(self._in_packet['packet'])
-            if self._in_packet['remaining_length'] > 1:
-                properties = Properties(packet_type)
-                _props, _props_len = properties.unpack(
-                    self._in_packet['packet'][1:])
+        result = _packet.decode_disconnect(self._in_packet["command"], self._in_packet["packet"], self._protocol)
+        reasonCode, properties = result.reason, result.properties
+
         self._easy_log(MQTT_LOG_DEBUG, "Received DISCONNECT %s %s",
                        reasonCode,
                        properties
@@ -4088,19 +4053,13 @@ class Client:
         )
 
     def _handle_suback(self) -> None:
-        self._easy_log(MQTT_LOG_DEBUG, "Received SUBACK")
-        pack_format = f"!H{len(self._in_packet['packet']) - 2}s"
-        (mid, packet) = struct.unpack(pack_format, self._in_packet['packet'])
+        result = _packet.decode_suback(self._in_packet["command"], self._in_packet["packet"], self._protocol)
+        mid = result.mid
+        reasoncodes = result.reason_codes
+        properties = result.properties
+        granted_qos = result.granted_qos
 
-        if self._protocol == MQTTv5:
-            properties = Properties(SUBACK >> 4)
-            _props, props_len = properties.unpack(packet)
-            reasoncodes = [ReasonCode(SUBACK >> 4, identifier=c) for c in packet[props_len:]]
-        else:
-            pack_format = f"!{'B' * len(packet)}"
-            granted_qos = struct.unpack(pack_format, packet)
-            reasoncodes = [ReasonCode(SUBACK >> 4, identifier=c) for c in granted_qos]
-            properties = Properties(SUBACK >> 4)
+        self._easy_log(MQTT_LOG_DEBUG, "Received SUBACK")
 
         with self._callback_mutex:
             on_subscribe = self.on_subscribe
@@ -4138,41 +4097,25 @@ class Client:
                         raise
 
     def _handle_publish(self) -> MQTTErrorCode:
-        header = self._in_packet['command']
-        message = MQTTMessage()
-        message.dup = ((header & 0x08) >> 3) != 0
-        message.qos = (header & 0x06) >> 1
-        message.retain = (header & 0x01) != 0
-
-        pack_format = f"!H{len(self._in_packet['packet']) - 2}s"
-        (slen, packet) = struct.unpack(pack_format, self._in_packet['packet'])
-        pack_format = f"!{slen}s{len(packet) - slen}s"
-        (topic, packet) = struct.unpack(pack_format, packet)
-
-        if self._protocol != MQTTv5 and len(topic) == 0:
-            return MQTTErrorCode.MQTT_ERR_PROTOCOL
+        result = _packet.decode_publish(self._in_packet["command"], self._in_packet["packet"], self._protocol)
+        message = MQTTMessage(
+            mid=result.mid,
+            topic=result.topic,
+        )
+        message.dup = result.dup
+        message.qos = result.qos
+        message.retain = result.retain
+        message.properties = result.properties
+        message.payload = result.payload
 
         # Handle topics with invalid UTF-8
         # This replaces an invalid topic with a message and the hex
         # representation of the topic for logging. When the user attempts to
         # access message.topic in the callback, an exception will be raised.
         try:
-            print_topic = topic.decode('utf-8')
+            print_topic = result.topic.decode('utf-8')
         except UnicodeDecodeError:
-            print_topic = f"TOPIC WITH INVALID UTF-8: {topic!r}"
-
-        message.topic = topic
-
-        if message.qos > 0:
-            pack_format = f"!H{len(packet) - 2}s"
-            (message.mid, packet) = struct.unpack(pack_format, packet)
-
-        if self._protocol == MQTTv5:
-            message.properties = Properties(PUBLISH >> 4)
-            _props, props_len = message.properties.unpack(packet)
-            packet = packet[props_len:]
-
-        message.payload = packet
+            print_topic = f"TOPIC WITH INVALID UTF-8: {result.topic!r}"
 
         if self._protocol == MQTTv5:
             self._easy_log(
@@ -4234,20 +4177,14 @@ class Client:
 
 
     def _handle_pubrel(self) -> MQTTErrorCode:
-        if self._protocol == MQTTv5:
-            if self._in_packet['remaining_length'] < 2:
-                return MQTTErrorCode.MQTT_ERR_PROTOCOL
-        elif self._in_packet['remaining_length'] != 2:
-            return MQTTErrorCode.MQTT_ERR_PROTOCOL
+        result = _packet.decode_pubrel(self._in_packet["command"], self._in_packet["packet"], self._protocol)
+        (mid, reasonCode, properties) = result.mid, result.reason, result.properties
 
-        mid, = struct.unpack("!H", self._in_packet['packet'][:2])
-        if self._protocol == MQTTv5 and self._in_packet['remaining_length'] > 2:
-            reasonCode = ReasonCode(PUBREL >> 4)
-            reasonCode.unpack(self._in_packet['packet'][2:])
-            if self._in_packet['remaining_length'] > 3:
-                properties = Properties(PUBREL >> 4)
-                _props, _props_len = properties.unpack(
-                    self._in_packet['packet'][3:])
+        # TODO: by ignoring reason code & properties, we might probably not being
+        # MQTTv5 compliant.
+        _ = reasonCode
+        _ = properties
+
         self._easy_log(MQTT_LOG_DEBUG, "Received PUBREL (Mid: %d)", mid)
 
         with self._in_message_mutex:
@@ -4299,20 +4236,14 @@ class Client:
         return MQTTErrorCode.MQTT_ERR_SUCCESS
 
     def _handle_pubrec(self) -> MQTTErrorCode:
-        if self._protocol == MQTTv5:
-            if self._in_packet['remaining_length'] < 2:
-                return MQTTErrorCode.MQTT_ERR_PROTOCOL
-        elif self._in_packet['remaining_length'] != 2:
-            return MQTTErrorCode.MQTT_ERR_PROTOCOL
+        result = _packet.decode_pubrec(self._in_packet["command"], self._in_packet["packet"], self._protocol)
+        (mid, reasonCode, properties) = result.mid, result.reason, result.properties
 
-        mid, = struct.unpack("!H", self._in_packet['packet'][:2])
-        if self._protocol == MQTTv5 and self._in_packet['remaining_length'] > 2:
-            reasonCode = ReasonCode(PUBREC >> 4)
-            reasonCode.unpack(self._in_packet['packet'][2:])
-            if self._in_packet['remaining_length'] > 3:
-                properties = Properties(PUBREC >> 4)
-                _props, _props_len = properties.unpack(
-                    self._in_packet['packet'][3:])
+        # TODO: by ignoring reason code & properties, we might probably not being
+        # MQTTv5 compliant.
+        _ = reasonCode
+        _ = properties
+
         self._easy_log(MQTT_LOG_DEBUG, "Received PUBREC (Mid: %d)", mid)
 
         with self._out_message_mutex:
@@ -4325,24 +4256,11 @@ class Client:
         return MQTTErrorCode.MQTT_ERR_SUCCESS
 
     def _handle_unsuback(self) -> MQTTErrorCode:
-        if self._protocol == MQTTv5:
-            if self._in_packet['remaining_length'] < 4:
-                return MQTTErrorCode.MQTT_ERR_PROTOCOL
-        elif self._in_packet['remaining_length'] != 2:
-            return MQTTErrorCode.MQTT_ERR_PROTOCOL
+        result = _packet.decode_unsuback(self._in_packet["command"], self._in_packet["packet"], self._protocol)
 
-        mid, = struct.unpack("!H", self._in_packet['packet'][:2])
-        if self._protocol == MQTTv5:
-            packet = self._in_packet['packet'][2:]
-            properties = Properties(UNSUBACK >> 4)
-            _props, props_len = properties.unpack(packet)
-            reasoncodes_list = [
-                ReasonCode(UNSUBACK >> 4, identifier=c)
-                for c in packet[props_len:]
-            ]
-        else:
-            reasoncodes_list = []
-            properties = Properties(UNSUBACK >> 4)
+        mid = result.mid
+        reasoncodes_list = result.reason_codes
+        properties = result.properties
 
         self._easy_log(MQTT_LOG_DEBUG, "Received UNSUBACK (Mid: %d)", mid)
         with self._callback_mutex:
@@ -4483,22 +4401,14 @@ class Client:
     def _handle_pubackcomp(
         self, cmd: Literal['PUBACK', 'PUBCOMP']
     ) -> MQTTErrorCode:
-        if self._protocol == MQTTv5:
-            if self._in_packet['remaining_length'] < 2:
-                return MQTTErrorCode.MQTT_ERR_PROTOCOL
-        elif self._in_packet['remaining_length'] != 2:
-            return MQTTErrorCode.MQTT_ERR_PROTOCOL
+        result: _packet.PubackPacket|_packet.PubcompPacket
+        if cmd == "PUBACK":
+            result = _packet.decode_puback(self._in_packet["command"], self._in_packet["packet"], self._protocol)
+        else:
+            result = _packet.decode_pubcomp(self._in_packet["command"], self._in_packet["packet"], self._protocol)
 
-        packet_type_enum = PUBACK if cmd == "PUBACK" else PUBCOMP
-        packet_type = packet_type_enum.value >> 4
-        mid, = struct.unpack("!H", self._in_packet['packet'][:2])
-        reasonCode = ReasonCode(packet_type)
-        properties = Properties(packet_type)
-        if self._protocol == MQTTv5 and self._in_packet['remaining_length'] > 2:
-            reasonCode.unpack(self._in_packet['packet'][2:])
-            if self._in_packet['remaining_length'] > 3:
-                _props, _props_len = properties.unpack(
-                    self._in_packet['packet'][3:])
+        (mid, reasonCode, properties) = result.mid, result.reason, result.properties
+
         self._easy_log(MQTT_LOG_DEBUG, "Received %s (Mid: %d)", cmd, mid)
 
         with self._out_message_mutex:
