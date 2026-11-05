@@ -1137,12 +1137,22 @@ class Client:
     def reinitialise(
         self,
         client_id: str = "",
-        clean_session: bool = True,
+        clean_session: bool | None = None,
         userdata: Any = None,
     ) -> None:
+        """Reset the client, keeping the options given to the constructor."""
         self._reset_sockets()
 
-        self.__init__(self.callback_api_version, client_id, clean_session, userdata)  # type: ignore[misc]
+        self.__init__(  # type: ignore[misc]
+            self.callback_api_version,
+            client_id,
+            clean_session,
+            userdata,
+            protocol=self._protocol,
+            transport=self._transport,
+            reconnect_on_failure=self._reconnect_on_failure,
+            manual_ack=self._manual_ack,
+        )
 
     def ws_set_options(
         self,

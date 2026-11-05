@@ -1340,3 +1340,45 @@ class TestLargeDownload:
         finally:
             mqttc.loop_stop()
             fake_broker.finish()
+
+
+class TestReinitialise:
+    @pytest.mark.parametrize("protocol", [
+        MQTTProtocolVersion.MQTTv31,
+        MQTTProtocolVersion.MQTTv311,
+        MQTTProtocolVersion.MQTTv5,
+    ])
+    def test_keeps_constructor_options(self, protocol):
+        mqttc = client.Client(
+            CallbackAPIVersion.VERSION2,
+            "first-id",
+            protocol=protocol,
+            transport="websockets",
+            reconnect_on_failure=False,
+            manual_ack=True,
+        )
+
+        mqttc.reinitialise("second-id")
+
+        assert mqttc.callback_api_version == CallbackAPIVersion.VERSION2
+        assert mqttc.protocol == protocol
+        assert mqttc.transport == "websockets"
+        assert mqttc._reconnect_on_failure is False
+        assert mqttc._manual_ack is True
+        assert mqttc._client_id == b"second-id"
+
+    def test_resets_other_state(self):
+        mqttc = client.Client(CallbackAPIVersion.VERSION2, "first-id")
+        mqttc.username_pw_set("user", "pass")
+
+        mqttc.reinitialise()
+
+        assert mqttc._username is None
+        assert mqttc._password is None
+        assert mqttc._clean_session is True
+
+    def test_clean_session_with_mqttv5_raises(self):
+        mqttc = client.Client(CallbackAPIVersion.VERSION2, protocol=MQTTProtocolVersion.MQTTv5)
+
+        with pytest.raises(ValueError):
+            mqttc.reinitialise(clean_session=True)
