@@ -1,3 +1,4 @@
+import logging
 import re
 import threading
 import time
@@ -6,7 +7,7 @@ import unicodedata
 import pytest
 
 from paho.mqtt import client
-from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion
+from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion, _ConnectionState
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
@@ -349,6 +350,22 @@ class Test_connect_v5:
 
 
 class TestConnectionLost:
+    @pytest.mark.parametrize("state,expect_error", [
+        (_ConnectionState.MQTT_CS_DISCONNECTING, False),
+        (_ConnectionState.MQTT_CS_DISCONNECTED, False),
+        (_ConnectionState.MQTT_CS_NEW, True),
+        (_ConnectionState.MQTT_CS_CONNECTION_LOST, True),
+    ])
+    def test_loop_without_socket_logging(self, state, expect_error, caplog):
+        mqttc = client.Client(CallbackAPIVersion.VERSION2)
+        mqttc.enable_logger()
+        mqttc._state = state
+
+        with caplog.at_level(logging.ERROR, logger="paho.mqtt.client"):
+            assert mqttc.loop(timeout=0) == MQTTErrorCode.MQTT_ERR_NO_CONN
+
+        assert bool(caplog.records) is expect_error
+
     def test_with_loop_start(self, fake_broker: FakeBroker):
         mqttc = client.Client(
             CallbackAPIVersion.VERSION1,

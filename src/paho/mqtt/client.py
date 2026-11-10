@@ -1633,6 +1633,8 @@ class Client:
         # avoiding: error: Value of type variable "_R" of "select" cannot be "SocketLike | None"  [type-var]
         # (and for "_W") in select.select(rlist, wlist, [], timeout) below.
         if self._sock is None:
+            if self._state in (_ConnectionState.MQTT_CS_DISCONNECTING, _ConnectionState.MQTT_CS_DISCONNECTED):
+                return MQTT_ERR_NO_CONN
             msg=(
                 f"Client is not connected. Socket: {self._sock!r}). "
                 f"Last known Connection State: {self._state.name}"
