@@ -1637,7 +1637,13 @@ class Client:
                 f"Client is not connected. Socket: {self._sock!r}). "
                 f"Last known Connection State: {self._state.name}"
             )
-            self._easy_log(MQTT_LOG_ERR, msg)
+            if self._state in (
+                _ConnectionState.MQTT_CS_DISCONNECTING,
+                _ConnectionState.MQTT_CS_DISCONNECTED,
+                ):
+                self._easy_log(MQTT_LOG_ERR, msg)
+            else:
+                self._easy_log(MQTT_LOG_DEBUG, msg)
             return MQTT_ERR_NO_CONN
 
         if self.want_write():
