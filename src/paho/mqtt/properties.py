@@ -27,6 +27,8 @@ def writeInt16(length):
 
 def readInt16(buf):
     # deserialize a 16 bit integer from network format
+    if len(buf) < 2:
+        raise MalformedPacket("Not enough data to read two byte integer")
     return struct.unpack("!H", buf[:2])[0]
 
 
@@ -37,6 +39,8 @@ def writeInt32(length):
 
 def readInt32(buf):
     # deserialize a 32 bit integer from network format
+    if len(buf) < 4:
+        raise MalformedPacket("Not enough data to read four byte integer")
     return struct.unpack("!L", buf[:4])[0]
 
 
@@ -143,6 +147,13 @@ class VariableByteIntegers:  # Variable Byte Integer
             if digit & 128 == 0:
                 break
             multiplier *= 128
+        # [MQTT-1.5.5-1] the encoded value MUST use the minimum number of
+        # bytes necessary to represent the value, so a continuation byte on
+        # the first digit of a shorter encoding is a malformed packet.
+        if bytes > 1 and value < (1 << (7 * (bytes - 1))):
+            raise MalformedPacket(
+                "Variable Byte Integer does not use the minimum number of bytes"
+            )
         return (value, bytes)
 
 
@@ -380,17 +391,31 @@ class Properties:
         return VariableByteIntegers.encode(len(buffer)) + buffer
 
     def readProperty(self, buffer, type, propslen):
+        # Every property value must fit inside the Property Length region
+        # (MQTT v5.0 sections 2.2.2.1 and 2.2.2.2), so a value that reaches
+        # past the bytes left in that region - or past the end of the buffer -
+        # cannot be parsed and is a malformed packet.
         if type == self.types.index("Byte"):
+            if propslen < 1 or len(buffer) < 1:
+                raise MalformedPacket("Not enough data to read byte property")
             value = buffer[0]
             valuelen = 1
         elif type == self.types.index("Two Byte Integer"):
+            if propslen < 2 or len(buffer) < 2:
+                raise MalformedPacket("Not enough data to read two byte integer property")
             value = readInt16(buffer)
             valuelen = 2
         elif type == self.types.index("Four Byte Integer"):
+            if propslen < 4 or len(buffer) < 4:
+                raise MalformedPacket("Not enough data to read four byte integer property")
             value = readInt32(buffer)
             valuelen = 4
         elif type == self.types.index("Variable Byte Integer"):
             value, valuelen = VariableByteIntegers.decode(buffer)
+            if valuelen > propslen:
+                raise MalformedPacket(
+                    "Variable Byte Integer property exceeds the Property Length"
+                )
         elif type == self.types.index("Binary Data"):
             value, valuelen = readBytes(buffer, propslen)
         elif type == self.types.index("UTF-8 Encoded String"):
@@ -419,13 +444,25 @@ class Properties:
         while propslenleft > 0:  # properties length is 0 if there are none
             identifier, VBIlen2 = VariableByteIntegers.decode(
                 buffer)  # property identifier
+            if VBIlen2 > propslenleft:
+                raise MalformedPacket(
+                    "Property identifier exceeds the Property Length"
+                )
             buffer = buffer[VBIlen2:]  # strip the bytes used by the VBI
             propslenleft -= VBIlen2
+            if identifier not in self.properties:
+                # Unknown property identifiers are malformed packets
+                # (MQTT v5.0 section 2.2.2.2).
+                raise MalformedPacket(f"Unknown property identifier {identifier}")
             attr_type = self.properties[identifier][0]
             value, valuelen = self.readProperty(
                 buffer, attr_type, propslenleft)
             buffer = buffer[valuelen:]  # strip the bytes used by the value
             propslenleft -= valuelen
+            if propslenleft < 0:
+                raise MalformedPacket(
+                    "Property value exceeds the Property Length"
+                )
             propname = self.getNameFromIdent(identifier)
             compressedName = propname.replace(' ', '')
             if not self.allowsMultiple(compressedName) and hasattr(self, compressedName):
