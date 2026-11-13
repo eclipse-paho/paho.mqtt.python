@@ -103,7 +103,7 @@ class TestVariableByteIntegerEncoding:
 
     def test_empty_buffer_rejected(self):
         with pytest.raises(MalformedPacket):
-            VariableByteIntegers.decode(bytes())
+            VariableByteIntegers.decode(b"")
 
     def test_non_minimal_encoding_rejected(self):
         # [MQTT-1.5.5-1] 129 must be encoded as 0x81 0x01 (two bytes), not
