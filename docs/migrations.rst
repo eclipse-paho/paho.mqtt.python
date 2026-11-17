@@ -132,7 +132,7 @@ on_subscribe
                 # error processing
 
     # OLD code for MQTTv5
-    def on_disconnect(client, userdata, mid, reason_codes, properties):
+    def on_subscribe(client, userdata, mid, granted_qos, rc, properties=None):
         for sub_result in reason_codes:
             if sub_result == 1:
                 # process QoS == 1
