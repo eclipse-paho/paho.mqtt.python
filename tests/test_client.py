@@ -1,7 +1,9 @@
 import re
+import socket
 import threading
 import time
 import unicodedata
+from contextlib import ExitStack
 
 import pytest
 
@@ -459,6 +461,96 @@ class TestConnectionLost:
 
 
 class TestPublish:
+    @pytest.mark.parametrize(
+        "reconnect,remove_queued",
+        [(False, False), (False, True), (True, False), (True, True)],
+        ids=["ack-refill", "ack-refill-removed", "reconnect", "reconnect-removed"],
+    )
+    def test_publish_from_send_log(self, monkeypatch, reconnect, remove_queued):
+        mqttc = client.Client(CallbackAPIVersion.VERSION2, "send-log")
+        mqttc.max_inflight_messages_set(0 if reconnect else 1)
+        completed = []
+        mqttc.on_publish = lambda cl, userdata, mid, reason, properties: completed.append(mid)
+
+        with ExitStack() as sockets:
+            def create_socket():
+                nonlocal broker
+                sock, broker = socket.socketpair()
+                sockets.enter_context(broker).settimeout(1)
+                return sockets.enter_context(sock)
+
+            def receive(packet):
+                broker.sendall(packet)
+                assert mqttc.loop_read() == MQTTErrorCode.MQTT_ERR_SUCCESS
+
+            def expect_publish(info, payload, *, dup=False):
+                packet = paho_test.gen_publish("test", 1, payload, mid=info.mid, dup=dup)
+                paho_test.expect_packet(broker, "publish", packet)
+
+            broker: socket.socket
+            monkeypatch.setattr(mqttc, "_create_socket", create_socket)
+            connect = paho_test.gen_connect("send-log", keepalive=60)
+            connack = paho_test.gen_connack()
+            assert mqttc.connect("localhost") == MQTTErrorCode.MQTT_ERR_SUCCESS
+            paho_test.expect_packet(broker, "connect", connect)
+            receive(connack)
+
+            first = mqttc.publish("test", "first", qos=1)
+            expect_publish(first, "first")
+            second = mqttc.publish("test", "second", qos=1)
+            if reconnect:
+                expect_publish(second, "second")
+            else:
+                third = mqttc.publish("test", "third", qos=1)
+
+            nested = []
+
+            def on_log(cl, userdata, level, message):
+                if message.startswith("Sending PUBLISH"):
+                    cl.on_log = None
+                    if remove_queued:
+                        cl._out_messages.pop((second if reconnect else third).mid)
+                    nested.append(cl.publish("test", "nested", qos=1))
+
+            mqttc.on_log = on_log
+            if reconnect:
+                assert mqttc.reconnect() == MQTTErrorCode.MQTT_ERR_SUCCESS
+                paho_test.expect_packet(broker, "connect", connect)
+                receive(connack)
+                (added,) = nested
+                expect_publish(added, "nested")
+                expect_publish(first, "first", dup=True)
+                pending = [added, first]
+                if not remove_queued:
+                    expect_publish(second, "second", dup=True)
+                    pending.append(second)
+            else:
+                receive(paho_test.gen_puback(first.mid))
+                (added,) = nested
+                expect_publish(second, "second")
+                assert mqttc._inflight_messages == 1
+                receive(paho_test.gen_puback(second.mid))
+                if not remove_queued:
+                    expect_publish(third, "third")
+                    assert mqttc._inflight_messages == 1
+                    receive(paho_test.gen_puback(third.mid))
+                expect_publish(added, "nested")
+                pending = [added]
+
+            assert added.rc == MQTTErrorCode.MQTT_ERR_SUCCESS
+            assert mqttc._inflight_messages == len(pending)
+            for info in pending:
+                receive(paho_test.gen_puback(info.mid))
+                assert info.is_published()
+
+            expected = pending if reconnect else [first, second, third, added]
+            if remove_queued and not reconnect:
+                expected.remove(third)
+            assert completed == [info.mid for info in expected]
+            assert all(info.is_published() for info in expected)
+            assert mqttc._inflight_messages == 0
+            assert mqttc.disconnect() == MQTTErrorCode.MQTT_ERR_SUCCESS
+
     def test_publish_before_connect(self, fake_broker: FakeBroker) -> None:
         mqttc = client.Client(
             CallbackAPIVersion.VERSION1,
