@@ -831,7 +831,6 @@ class Client:
         self._bind_port = 0
         self._proxy: Any = {}
         self._in_callback_mutex = threading.Lock()
-        self._callback_mutex = threading.RLock()
         self._msgtime_mutex = threading.Lock()
         self._out_message_mutex = threading.RLock()
         self._in_message_mutex = threading.Lock()
@@ -1573,8 +1572,7 @@ class Client:
         # Put messages in progress in a valid state.
         self._messages_reconnect_reset()
 
-        with self._callback_mutex:
-            on_pre_connect = self.on_pre_connect
+        on_pre_connect = self.on_pre_connect
 
         if on_pre_connect:
             try:
@@ -2430,8 +2428,7 @@ class Client:
 
     @on_pre_connect.setter
     def on_pre_connect(self, func: CallbackOnPreConnect | None) -> None:
-        with self._callback_mutex:
-            self._on_pre_connect = func
+        self._on_pre_connect = func
 
     def pre_connect_callback(
         self,
@@ -2496,8 +2493,7 @@ class Client:
 
     @on_connect.setter
     def on_connect(self, func: CallbackOnConnect | None) -> None:
-        with self._callback_mutex:
-            self._on_connect = func
+        self._on_connect = func
 
     def connect_callback(
         self,
@@ -2526,8 +2522,7 @@ class Client:
 
     @on_connect_fail.setter
     def on_connect_fail(self, func: CallbackOnConnectFail | None) -> None:
-        with self._callback_mutex:
-            self._on_connect_fail = func
+        self._on_connect_fail = func
 
     def connect_fail_callback(
         self,
@@ -2576,8 +2571,7 @@ class Client:
 
     @on_subscribe.setter
     def on_subscribe(self, func: CallbackOnSubscribe | None) -> None:
-        with self._callback_mutex:
-            self._on_subscribe = func
+        self._on_subscribe = func
 
     def subscribe_callback(
         self,
@@ -2610,8 +2604,7 @@ class Client:
 
     @on_message.setter
     def on_message(self, func: CallbackOnMessage | None) -> None:
-        with self._callback_mutex:
-            self._on_message = func
+        self._on_message = func
 
     def message_callback(
         self,
@@ -2666,8 +2659,7 @@ class Client:
 
     @on_publish.setter
     def on_publish(self, func: CallbackOnPublish | None) -> None:
-        with self._callback_mutex:
-            self._on_publish = func
+        self._on_publish = func
 
     def publish_callback(
         self,
@@ -2717,8 +2709,7 @@ class Client:
 
     @on_unsubscribe.setter
     def on_unsubscribe(self, func: CallbackOnUnsubscribe | None) -> None:
-        with self._callback_mutex:
-            self._on_unsubscribe = func
+        self._on_unsubscribe = func
 
     def unsubscribe_callback(
         self,
@@ -2770,8 +2761,7 @@ class Client:
 
     @on_disconnect.setter
     def on_disconnect(self, func: CallbackOnDisconnect | None) -> None:
-        with self._callback_mutex:
-            self._on_disconnect = func
+        self._on_disconnect = func
 
     def disconnect_callback(
         self,
@@ -2802,8 +2792,7 @@ class Client:
 
     @on_socket_open.setter
     def on_socket_open(self, func: CallbackOnSocket | None) -> None:
-        with self._callback_mutex:
-            self._on_socket_open = func
+        self._on_socket_open = func
 
     def socket_open_callback(
         self,
@@ -2815,8 +2804,7 @@ class Client:
 
     def _call_socket_open(self, sock: SocketLike) -> None:
         """Call the socket_open callback with the just-opened socket"""
-        with self._callback_mutex:
-            on_socket_open = self.on_socket_open
+        on_socket_open = self.on_socket_open
 
         if on_socket_open:
             with self._in_callback_mutex:
@@ -2849,8 +2837,7 @@ class Client:
 
     @on_socket_close.setter
     def on_socket_close(self, func: CallbackOnSocket | None) -> None:
-        with self._callback_mutex:
-            self._on_socket_close = func
+        self._on_socket_close = func
 
     def socket_close_callback(
         self,
@@ -2862,8 +2849,7 @@ class Client:
 
     def _call_socket_close(self, sock: SocketLike) -> None:
         """Call the socket_close callback with the about-to-be-closed socket"""
-        with self._callback_mutex:
-            on_socket_close = self.on_socket_close
+        on_socket_close = self.on_socket_close
 
         if on_socket_close:
             with self._in_callback_mutex:
@@ -2896,8 +2882,7 @@ class Client:
 
     @on_socket_register_write.setter
     def on_socket_register_write(self, func: CallbackOnSocket | None) -> None:
-        with self._callback_mutex:
-            self._on_socket_register_write = func
+        self._on_socket_register_write = func
 
     def socket_register_write_callback(
         self,
@@ -2912,8 +2897,7 @@ class Client:
         if not self._sock or self._registered_write:
             return
         self._registered_write = True
-        with self._callback_mutex:
-            on_socket_register_write = self.on_socket_register_write
+        on_socket_register_write = self.on_socket_register_write
 
         if on_socket_register_write:
             try:
@@ -2950,8 +2934,7 @@ class Client:
     def on_socket_unregister_write(
         self, func: CallbackOnSocket | None
     ) -> None:
-        with self._callback_mutex:
-            self._on_socket_unregister_write = func
+        self._on_socket_unregister_write = func
 
     def socket_unregister_write_callback(
         self,
@@ -2972,8 +2955,7 @@ class Client:
             return
         self._registered_write = False
 
-        with self._callback_mutex:
-            on_socket_unregister_write = self.on_socket_unregister_write
+        on_socket_unregister_write = self.on_socket_unregister_write
 
         if on_socket_unregister_write:
             try:
@@ -3010,8 +2992,7 @@ class Client:
         if callback is None or sub is None:
             raise ValueError("sub and callback must both be defined.")
 
-        with self._callback_mutex:
-            self._on_message_filtered[sub] = callback
+        self._on_message_filtered[sub] = callback
 
     def topic_callback(
         self, sub: str
@@ -3027,11 +3008,10 @@ class Client:
         if sub is None:
             raise ValueError("sub must defined.")
 
-        with self._callback_mutex:
-            try:
-                del self._on_message_filtered[sub]
-            except KeyError:  # no such subscription
-                pass
+        try:
+            del self._on_message_filtered[sub]
+        except KeyError:  # no such subscription
+            pass
 
     # ============================================================
     # Private functions
@@ -3195,8 +3175,7 @@ class Client:
 
                 if packet['to_process'] == 0:
                     if (packet['command'] & 0xF0) == PUBLISH and packet['qos'] == 0:
-                        with self._callback_mutex:
-                            on_publish = self.on_publish
+                        on_publish = self.on_publish
 
                         if on_publish:
                             with self._in_callback_mutex:
@@ -3898,8 +3877,7 @@ class Client:
         # it won't be the first successful connect any more
         self._mqttv5_first_connect = False
 
-        with self._callback_mutex:
-            on_connect = self.on_connect
+        on_connect = self.on_connect
 
         if on_connect:
             flags_dict = {}
@@ -4061,8 +4039,7 @@ class Client:
 
         self._easy_log(MQTT_LOG_DEBUG, "Received SUBACK")
 
-        with self._callback_mutex:
-            on_subscribe = self.on_subscribe
+        on_subscribe = self.on_subscribe
 
         if on_subscribe:
             with self._in_callback_mutex:  # Don't call loop_write after _send_publish()
@@ -4263,8 +4240,7 @@ class Client:
         properties = result.properties
 
         self._easy_log(MQTT_LOG_DEBUG, "Received UNSUBACK (Mid: %d)", mid)
-        with self._callback_mutex:
-            on_unsubscribe = self.on_unsubscribe
+        on_unsubscribe = self.on_unsubscribe
 
         if on_unsubscribe:
             with self._in_callback_mutex:
@@ -4313,8 +4289,7 @@ class Client:
         reason: ReasonCode | None = None,
         properties: Properties | None = None,
     ) -> None:
-        with self._callback_mutex:
-            on_disconnect = self.on_disconnect
+        on_disconnect = self.on_disconnect
 
         if on_disconnect:
             with self._in_callback_mutex:
@@ -4360,8 +4335,7 @@ class Client:
                         raise
 
     def _do_on_publish(self, mid: int, reason_code: ReasonCode, properties: Properties) -> MQTTErrorCode:
-        with self._callback_mutex:
-            on_publish = self.on_publish
+        on_publish = self.on_publish
 
         if on_publish:
             with self._in_callback_mutex:
@@ -4427,14 +4401,13 @@ class Client:
             topic = None
 
         on_message_callbacks = []
-        with self._callback_mutex:
-            if topic is not None:
-                on_message_callbacks = list(self._on_message_filtered.iter_match(message.topic))
+        if topic is not None:
+            on_message_callbacks = list(self._on_message_filtered.iter_match(message.topic))
 
-            if len(on_message_callbacks) == 0:
-                on_message = self.on_message
-            else:
-                on_message = None
+        if len(on_message_callbacks) == 0:
+            on_message = self.on_message
+        else:
+            on_message = None
 
         for callback in on_message_callbacks:
             with self._in_callback_mutex:
@@ -4462,8 +4435,7 @@ class Client:
 
 
     def _handle_on_connect_fail(self) -> None:
-        with self._callback_mutex:
-            on_connect_fail = self.on_connect_fail
+        on_connect_fail = self.on_connect_fail
 
         if on_connect_fail:
             with self._in_callback_mutex:
