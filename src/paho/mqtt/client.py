@@ -3951,7 +3951,9 @@ class Client:
         if connack_rc == 0:
             rc = MQTTErrorCode.MQTT_ERR_SUCCESS
             with self._out_message_mutex:
-                for m in self._out_messages.values():
+                for m in list(self._out_messages.values()):
+                    if self._out_messages.get(m.mid) is not m:
+                        continue
                     m.timestamp = time_func()
                     if m.state == mqtt_ms_queued:
                         self.loop_write()  # Process outgoing messages that have just been queued up
@@ -4212,27 +4214,34 @@ class Client:
 
     def _update_inflight(self) -> MQTTErrorCode:
         # Dont lock message_mutex here
+        to_send: list[MQTTMessage] = []
         for m in self._out_messages.values():
-            if self._inflight_messages < self._max_inflight_messages:
-                if m.qos > 0 and m.state == mqtt_ms_queued:
-                    self._inflight_messages += 1
-                    if m.qos == 1:
-                        m.state = mqtt_ms_wait_for_puback
-                    elif m.qos == 2:
-                        m.state = mqtt_ms_wait_for_pubrec
-                    rc = self._send_publish(
-                        m.mid,
-                        m.topic.encode('utf-8'),
-                        m.payload,
-                        m.qos,
-                        m.retain,
-                        m.dup,
-                        properties=m.properties,
-                    )
-                    if rc != MQTTErrorCode.MQTT_ERR_SUCCESS:
-                        return rc
-            else:
+            if self._inflight_messages + len(to_send) >= self._max_inflight_messages:
+                break
+            if m.qos > 0 and m.state == mqtt_ms_queued:
+                to_send.append(m)
+
+        for m in to_send:
+            if self._out_messages.get(m.mid) is not m or m.state != mqtt_ms_queued:
+                continue
+            if self._inflight_messages >= self._max_inflight_messages:
                 return MQTTErrorCode.MQTT_ERR_SUCCESS
+            self._inflight_messages += 1
+            if m.qos == 1:
+                m.state = mqtt_ms_wait_for_puback
+            elif m.qos == 2:
+                m.state = mqtt_ms_wait_for_pubrec
+            rc = self._send_publish(
+                m.mid,
+                m.topic.encode('utf-8'),
+                m.payload,
+                m.qos,
+                m.retain,
+                m.dup,
+                properties=m.properties,
+            )
+            if rc != MQTTErrorCode.MQTT_ERR_SUCCESS:
+                return rc
         return MQTTErrorCode.MQTT_ERR_SUCCESS
 
     def _handle_pubrec(self) -> MQTTErrorCode:
