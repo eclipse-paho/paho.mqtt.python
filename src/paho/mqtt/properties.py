@@ -430,6 +430,6 @@ class Properties:
             compressedName = propname.replace(' ', '')
             if not self.allowsMultiple(compressedName) and hasattr(self, compressedName):
                 raise MQTTException(
-                    f"Property '{property}' must not exist more than once")
+                    f"Property '{propname}' must not exist more than once (Ascii spaces are removed) ")
             setattr(self, propname, value)
         return self, propslen + VBIlen
